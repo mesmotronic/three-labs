@@ -18,7 +18,11 @@ const colorData = new Array(totalSpheres).fill(null).map(() => new THREE.Color()
 const canvas = document.querySelector("#container");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
 renderer.setAnimationLoop(animate);
-// renderer.setPixelRatio(window.devicePixelRatio);
+
+let selectedColorOverride = null;
+const raycaster = new THREE.Raycaster();
+const mouseDown = new THREE.Vector2();
+const mouse = new THREE.Vector2();
 
 const camera = new THREE.PerspectiveCamera(60, 2, 0.1, 1_000);
 camera.position.set(0, 0, 20);
@@ -30,7 +34,6 @@ const scene = new THREE.Scene();
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
-controls.update();
 
 const colors = [
   new THREE.Color(0xff0000),
@@ -166,10 +169,10 @@ const MetaballShader = {
 
         float shininess = 64.0;
         vec3 specularColor = vec3(1.0);
-
+        
         float spec = pow(max(dot(reflectDir, viewDir), 0.0), shininess);
-
-        float ambient_intensity = 0.24; 
+        
+        float ambient_intensity = 0.24;
         float diffuse_intensity = 0.7;  
         float specular_intensity = 0.8; 
 
@@ -256,7 +259,11 @@ function animate() {
     const index = numMainSpheres + i;
     if (p.active) {
       sphereData[index].set(p.position.x, p.position.y, p.position.z, p.radius);
-      colorData[index].copy(p.color);
+      if (selectedColorOverride) {
+        colorData[index].copy(selectedColorOverride);
+      } else {
+        colorData[index].copy(p.color); // Use particle's natural color
+      }
     } else {
       sphereData[index].set(0, 0, 0, 0);
     }
@@ -276,5 +283,46 @@ function resize() {
   renderer.setSize(innerWidth, innerHeight, false);
 }
 
+function pointerDownHandler(event) {
+  mouseDown.x = event.clientX;
+  mouseDown.y = event.clientY;
+}
+
+function clickHandler(event) {
+  if (mouseDown.distanceTo(new THREE.Vector2(event.clientX, event.clientY)) > 5) {
+    return;
+  }
+
+  mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
+  mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+
+  let clickedMainSphere = null;
+  let minDistance = Infinity;
+
+  for (let i = 0; i < numMainSpheres; i++) {
+    const sphere = mainSpheres[i];
+    const threeSphere = new THREE.Sphere(sphere.position, sphere.radius);
+    const intersectionPoint = new THREE.Vector3();
+
+    if (raycaster.ray.intersectSphere(threeSphere, intersectionPoint)) {
+      const distance = raycaster.ray.origin.distanceTo(intersectionPoint);
+      if (distance < minDistance) {
+        minDistance = distance;
+        clickedMainSphere = sphere;
+      }
+    }
+  }
+
+  if (clickedMainSphere) {
+    selectedColorOverride = clickedMainSphere.color.clone();
+  } else {
+    selectedColorOverride = null;
+  }
+}
+
 window.addEventListener("resize", resize);
+renderer.domElement.addEventListener('pointerdown', pointerDownHandler);
+renderer.domElement.addEventListener('click', clickHandler);
 resize();
