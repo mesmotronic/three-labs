@@ -34,12 +34,6 @@
       text-align: right;
       left: 15px;
     }
-
-    @media screen and (max-width: 600px) {
-      #info {
-        text-align: center;
-      }
-    }
   </style>
 </head>
 
@@ -47,7 +41,7 @@
   <div id="info"></div>
   <canvas id="container"></canvas>
   <div id="info">
-    <a href="https://github.com/neilrackett" target="_blank">@neilrackett</a> / <a href="/">more</a>
+    <a href="https://github.com/neilrackett" target="_blank">@neilrackett</a>
   </div>
 
   <script type="importmap">
@@ -76,10 +70,11 @@
     const colorData = new Array(totalSpheres).fill(null).map(() => new THREE.Color());
 
     const canvas = document.querySelector("#container");
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
     renderer.setAnimationLoop(animate);
+    // renderer.setPixelRatio(window.devicePixelRatio);
 
-    const camera = new THREE.PerspectiveCamera(75, 2, 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(60, 2, 0.1, 1_000);
     camera.position.set(0, 0, 20);
     camera.lookAt(0, 0, 0);
     camera.rotation.z = Math.PI / 2;
@@ -328,16 +323,11 @@
     }
 
     function resize() {
-      const canvas = renderer.domElement;
-      const pixelRatio = window.devicePixelRatio;
-      const width = (canvas.clientWidth * pixelRatio) | 0;
-      const height = (canvas.clientHeight * pixelRatio) | 0;
-      const needResize = canvas.width !== width || canvas.height !== height;
+      const { innerWidth, innerHeight } = window;
 
-      camera.aspect = width / height;
+      camera.aspect = innerWidth / innerHeight;
       camera.updateProjectionMatrix();
-
-      renderer.setSize(width, height, false);
+      renderer.setSize(innerWidth, innerHeight, false);
     }
 
     window.addEventListener("resize", resize);
