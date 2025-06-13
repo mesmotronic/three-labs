@@ -1,0 +1,328 @@
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const MAX_DELTA_TIME = 0.1;
+
+const clock = new THREE.Clock();
+
+const mainSpheres = [];
+const particles = [];
+
+const numMainSpheres = 5;
+const maxParticles = 25;
+const totalSpheres = numMainSpheres + maxParticles;
+
+const sphereData = new Array(totalSpheres).fill(null).map(() => new THREE.Vector4());
+const colorData = new Array(totalSpheres).fill(null).map(() => new THREE.Color());
+
+const canvas = document.querySelector("#container");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+renderer.setAnimationLoop(animate);
+
+let selectedColorOverride = null;
+const raycaster = new THREE.Raycaster();
+const mouseDown = new THREE.Vector2();
+const mouse = new THREE.Vector2();
+
+const camera = new THREE.PerspectiveCamera(60, 2, 0.1, 1_000);
+camera.position.set(0, 0, 20);
+camera.lookAt(0, 0, 0);
+camera.rotation.z = Math.PI / 2;
+
+const scene = new THREE.Scene();
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+
+const colors = [
+  new THREE.Color(0xff0000),
+  new THREE.Color(0xffa500),
+  new THREE.Color(0xffff00),
+  new THREE.Color(0x00ff00),
+  new THREE.Color(0x0000ff),
+];
+
+const spacing = 6.0;
+for (let i = 0; i < numMainSpheres; i++) {
+  mainSpheres.push({
+    position: new THREE.Vector3((i - (numMainSpheres - 1) / 2) * spacing, 0, 0),
+    radius: 1.5,
+    color: colors[i],
+  });
+}
+
+for (let i = 0; i < maxParticles; i++) {
+  particles.push({
+    position: new THREE.Vector3(),
+    velocity: new THREE.Vector3(),
+    radius: 0,
+    color: new THREE.Color(),
+    targetSphere: null,
+    active: false,
+  });
+}
+
+const MetaballShader = {
+  uniforms: {
+    u_time: { value: 0.0 },
+    u_resolution: { value: new THREE.Vector2() },
+    u_spheres: { value: sphereData },
+    u_colors: { value: colorData },
+    u_cameraWorldMatrix: { value: camera.matrixWorld },
+    u_projectionMatrixInverse: { value: camera.projectionMatrixInverse },
+    u_cameraPosition: { value: camera.position },
+  },
+
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = vec4(position, 1.0);
+    }
+  `,
+
+  fragmentShader: /* glsl */ `
+    varying vec2 vUv;
+
+    uniform vec2 u_resolution;
+    uniform vec4 u_spheres[30];
+    uniform vec3 u_colors[30];
+    uniform mat4 u_cameraWorldMatrix;
+    uniform mat4 u_projectionMatrixInverse;
+    uniform vec3 u_cameraPosition;
+
+    const int MAX_SPHERES = 30;
+    const float MAX_DIST = 100.0;
+    const float SURF_DIST = 0.001;
+    const int MAX_STEPS = 100;
+    const float K = 0.2;
+
+    struct SDFResult {
+      float dist;
+      vec3 color;
+    };
+
+    SDFResult smin(SDFResult a, SDFResult b, float k) {
+      float h = clamp(0.5 + 0.5 * (b.dist - a.dist) / k, 0.0, 1.0);
+      float blendedDist = mix(b.dist, a.dist, h) - k * h * (1.0 - h);
+      vec3 blendedColor = mix(b.color, a.color, h);
+      return SDFResult(blendedDist, blendedColor);
+    }
+
+    SDFResult map(vec3 p) {
+      SDFResult result = SDFResult(MAX_DIST, vec3(0.0));
+
+      for (int i = 0; i < MAX_SPHERES; i++) {
+        vec4 s = u_spheres[i];
+        if (s.w > 0.0) {
+        float d = length(p - s.xyz) - s.w;
+        result = smin(result, SDFResult(d, u_colors[i]), K);
+        }
+      }
+      return result;
+    }
+
+    vec3 getNormal(vec3 p) {
+      float d = map(p).dist;
+      vec2 e = vec2(0.001, 0);
+      vec3 n = d - vec3(
+        map(p - e.xyy).dist,
+        map(p - e.yxy).dist,
+        map(p - e.yyx).dist);
+      return normalize(n);
+    }
+
+    float rayMarch(vec3 ro, vec3 rd) {
+      float dO = 0.0;
+      for(int i = 0; i < MAX_STEPS; i++) {
+        vec3 p = ro + rd * dO;
+        float dS = map(p).dist;
+        dO += dS;
+        if(dO > MAX_DIST || dS < SURF_DIST) break;
+      }
+      return dO;
+    }
+
+    void main() {
+      vec2 ndc = (gl_FragCoord.xy / u_resolution.xy) * 2.0 - 1.0;
+      vec4 ray_clip = vec4(ndc.xy, -1.0, 1.0);
+      vec4 ray_view = u_projectionMatrixInverse * ray_clip;
+      vec4 ray_world = u_cameraWorldMatrix * ray_view;
+      ray_world.xyz /= ray_world.w;
+      vec3 ro = u_cameraPosition;
+      vec3 rd = normalize(ray_world.xyz - ro);
+
+      float dist = rayMarch(ro, rd);
+
+      if (dist < MAX_DIST) {
+        vec3 p = ro + rd * dist;
+        SDFResult scene = map(p);
+        vec3 normal = getNormal(p);
+        vec3 lightPos = vec3(5.0, 7.0, 4.0);
+        vec3 lightDir = normalize(lightPos - p);
+
+        float diffuse = max(dot(normal, lightDir), 0.0);
+
+        vec3 viewDir = normalize(ro - p);
+        vec3 reflectDir = reflect(-lightDir, normal); 
+
+        float shininess = 64.0;
+        vec3 specularColor = vec3(1.0);
+        
+        float spec = pow(max(dot(reflectDir, viewDir), 0.0), shininess);
+        
+        float ambient_intensity = 0.24;
+        float diffuse_intensity = 0.7;  
+        float specular_intensity = 0.8; 
+
+        vec3 color = scene.color * (ambient_intensity + diffuse_intensity * diffuse) + specularColor * spec * specular_intensity;
+
+        float fog = 1.0 - smoothstep(0.0, MAX_DIST * 0.8, dist);
+        vec3 fogColor = vec3(0.05, 0.05, 0.1);
+        color = mix(fogColor, color, fog);
+        gl_FragColor = vec4(color, 1.0);
+      } else {
+        gl_FragColor = vec4(0.05, 0.05, 0.1, 1.0);
+      }
+    }
+  `,
+};
+
+const geometry = new THREE.PlaneGeometry(2, 2);
+const material = new THREE.ShaderMaterial(MetaballShader);
+const plane = new THREE.Mesh(geometry, material);
+scene.add(plane);
+
+function spawnParticle() {
+  const particle = particles.find((p) => !p.active);
+  if (!particle) return;
+
+  const startIndex = Math.floor(Math.random() * numMainSpheres);
+
+  let direction = Math.random() < 0.5 ? -1 : 1;
+  if (startIndex === 0) direction = 1;
+  if (startIndex === numMainSpheres - 1) direction = -1;
+
+  const endIndex = startIndex + direction;
+
+  const startSphere = mainSpheres[startIndex];
+  const endSphere = mainSpheres[endIndex];
+
+  const travelDirection = new THREE.Vector3().subVectors(endSphere.position, startSphere.position).normalize();
+  const randomOffset = new THREE.Vector3().randomDirection();
+
+  if (randomOffset.dot(travelDirection) < 0) {
+    randomOffset.multiplyScalar(-1);
+  }
+
+  const spawnRadius = startSphere.radius * THREE.MathUtils.randFloat(0.0, 0.75);
+  particle.position.copy(startSphere.position).addScaledVector(randomOffset, spawnRadius);
+
+  particle.active = true;
+  particle.targetSphere = endSphere;
+  particle.radius = startSphere.radius * THREE.MathUtils.randFloat(0.05, 0.25);
+  particle.color.copy(startSphere.color);
+
+  const speed = THREE.MathUtils.randFloat(1.0, 5.25);
+  particle.velocity.copy(travelDirection).multiplyScalar(speed);
+}
+
+function updateParticles(deltaTime) {
+  spawnParticle();
+
+  for (const particle of particles) {
+    if (!particle.active) continue;
+
+    particle.position.addScaledVector(particle.velocity, deltaTime);
+
+    const distanceToTarget = particle.position.distanceTo(particle.targetSphere.position);
+    if (distanceToTarget < particle.targetSphere.radius - particle.radius) {
+      particle.active = false;
+    }
+  }
+}
+
+function animate() {
+  const deltaTime = Math.min(clock.getDelta(), MAX_DELTA_TIME);
+
+  updateParticles(deltaTime);
+  controls.update();
+
+  for (let i = 0; i < numMainSpheres; i++) {
+    const s = mainSpheres[i];
+    sphereData[i].set(s.position.x, s.position.y, s.position.z, s.radius);
+    colorData[i].copy(s.color);
+  }
+  for (let i = 0; i < maxParticles; i++) {
+    const p = particles[i];
+    const index = numMainSpheres + i;
+    if (p.active) {
+      sphereData[index].set(p.position.x, p.position.y, p.position.z, p.radius);
+      if (selectedColorOverride) {
+        colorData[index].copy(selectedColorOverride);
+      } else {
+        colorData[index].copy(p.color); // Use particle's natural color
+      }
+    } else {
+      sphereData[index].set(0, 0, 0, 0);
+    }
+  }
+
+  plane.material.uniforms.u_time.value = clock.getElapsedTime();
+  plane.material.uniforms.u_resolution.value.set(renderer.domElement.width, renderer.domElement.height);
+
+  renderer.render(scene, camera);
+}
+
+function resize() {
+  const { innerWidth, innerHeight } = window;
+
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight, false);
+}
+
+function pointerDownHandler(event) {
+  mouseDown.x = event.clientX;
+  mouseDown.y = event.clientY;
+}
+
+function clickHandler(event) {
+  if (mouseDown.distanceTo(new THREE.Vector2(event.clientX, event.clientY)) > 5) {
+    return;
+  }
+
+  mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
+  mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+
+  let clickedMainSphere = null;
+  let minDistance = Infinity;
+
+  for (let i = 0; i < numMainSpheres; i++) {
+    const sphere = mainSpheres[i];
+    const threeSphere = new THREE.Sphere(sphere.position, sphere.radius);
+    const intersectionPoint = new THREE.Vector3();
+
+    if (raycaster.ray.intersectSphere(threeSphere, intersectionPoint)) {
+      const distance = raycaster.ray.origin.distanceTo(intersectionPoint);
+      if (distance < minDistance) {
+        minDistance = distance;
+        clickedMainSphere = sphere;
+      }
+    }
+  }
+
+  if (clickedMainSphere) {
+    selectedColorOverride = clickedMainSphere.color.clone();
+  } else {
+    selectedColorOverride = null;
+  }
+}
+
+window.addEventListener("resize", resize);
+renderer.domElement.addEventListener('pointerdown', pointerDownHandler);
+renderer.domElement.addEventListener('click', clickHandler);
+resize();
