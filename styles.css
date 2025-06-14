@@ -1,0 +1,27 @@
+body {
+  margin: 0;
+  font-family: monospace;
+  color: #fff;
+  background-color: #111;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+#container {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+a {
+  color: #2983ff;
+  text-decoration: none;
+}
+
+#info {
+  position: absolute;
+  bottom: 15px;
+  right: 15px;
+  text-align: right;
+  left: 15px;
+}
