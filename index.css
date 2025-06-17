@@ -38,6 +38,13 @@ footer {
 a {
   color: #2983ff;
   text-decoration: none;
+
+  img {
+    vertical-align: text-top;
+    filter: invert(1);
+    width: 13px;
+    height: 13px;
+  }
 }
 
 ul {
