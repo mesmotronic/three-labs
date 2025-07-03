@@ -3,8 +3,8 @@
   "short_name": "IOTA Balls",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#111111",
-  "theme_color": "#222222",
+  "background_color": "#000000",
+  "theme_color": "#111111",
   "icons": [
     {
       "src": "icon-192.png",
