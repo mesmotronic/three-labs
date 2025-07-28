@@ -109,13 +109,13 @@ sphereGroup.add(sphere);
 sphereGroup.rotation.z = sphereTilt;
 scene.add(sphereGroup);
 
-const floorGrid = new Grid(gridSquareSize, floorGridDivisions, new THREE.Color(0xcc00cc));
+const floorGrid = new Grid(gridSquareSize, floorGridDivisions, new THREE.Color(0xaa00aa));
 floorGrid.rotation.x = -Math.PI / 2;
 floorGrid.position.y = -gridSquareSize * wallGridDivisions.y / 2;
 floorGrid.position.z = -2 + gridSquareSize * floorGridDivisions.y / 2;
 scene.add(floorGrid);
 
-const wallGrid = new Grid(gridSquareSize, wallGridDivisions, new THREE.Color(0xcc00cc), new THREE.Color(0xaaaaaa));
+const wallGrid = new Grid(gridSquareSize, wallGridDivisions, new THREE.Color(0xaa00aa), new THREE.Color(0xaaaaaa));
 wallGrid.position.z = -2;
 scene.add(wallGrid);
 
