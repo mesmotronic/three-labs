@@ -56,14 +56,20 @@
       }
     }
 
-
     const sphereTilt = THREE.MathUtils.degToRad(-20);
     const gridSquareSize = 0.55;
-    const gridDivisions = new THREE.Vector2(15, 12);
+    const floorGridDivisions = new THREE.Vector2(15, 3);
+    const wallGridDivisions = new THREE.Vector2(15, 12);
+
+    // Physics
+    const velocity = new THREE.Vector2(0.02, 0.05);
+    const gravity = 0.001;
+    const bounceDamping = 1;
+    const bounds = new THREE.Vector2(3, 1.7);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.z = 7.5;
+    camera.position.z = 10;
 
     const renderer = new THREE.WebGLRenderer({ antialias: false });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -94,14 +100,14 @@
       texture.repeat.set(1, 1);
       return texture;
     }
-    const checkerTex = createCheckerTexture(512, 8);
+    const checkerTexture = createCheckerTexture();
 
     // Sphere mesh
     const radius = 1.25;
     const sphere = new THREE.Mesh(
       new THREE.SphereGeometry(radius, 16, 8),
       new THREE.MeshBasicMaterial({
-        map: checkerTex,
+        map: checkerTexture,
       })
     );
     sphere.castShadow = true;
@@ -111,27 +117,20 @@
     sphereGroup.rotation.z = sphereTilt;
     scene.add(sphereGroup);
 
-
-    const floorGrid = new Grid(gridSquareSize, gridDivisions, new THREE.Color(0xcc00cc));
+    const floorGrid = new Grid(gridSquareSize, floorGridDivisions, new THREE.Color(0xcc00cc));
     floorGrid.rotation.x = -Math.PI / 2;
-    floorGrid.position.y = -gridSquareSize * gridDivisions.y / 2;
-    floorGrid.position.z = -2 + gridSquareSize * gridDivisions.y / 2;
+    floorGrid.position.y = -gridSquareSize * wallGridDivisions.y / 2;
+    floorGrid.position.z = -2 + gridSquareSize * floorGridDivisions.y / 2;
     scene.add(floorGrid);
 
-    const wallGrid = new Grid(gridSquareSize, gridDivisions, new THREE.Color(0xcc00cc), new THREE.Color(0xcccccc));
+    const wallGrid = new Grid(gridSquareSize, wallGridDivisions, new THREE.Color(0xcc00cc), new THREE.Color(0xcccccc));
     wallGrid.position.z = -2;
     scene.add(wallGrid);
 
     const shadowGeometry = new THREE.CircleGeometry(radius, 16);
-    const shadowMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2 });
+    const shadowMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3 });
     const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
     scene.add(shadow);
-
-    // Physics
-    const velocity = new THREE.Vector2(0.02, 0.05);
-    const gravity = 0.001;
-    const bounceDamping = 1;
-    const bounds = new THREE.Vector2(3, 1.5);
 
     // Handle window resize
     window.addEventListener('resize', () => {
