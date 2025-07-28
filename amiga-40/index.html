@@ -21,8 +21,8 @@
   <script type="module">
     import * as THREE from 'three';
 
-    class GridHelper2 extends THREE.LineSegments {
-      constructor(squareSize, divisions, color) {
+    class Grid extends THREE.LineSegments {
+      constructor(squareSize, divisions, color, fill) {
         const size = new THREE.Vector2(squareSize * divisions.x, squareSize * divisions.y);
         const startPos = new THREE.Vector2(-size.width / 2, -size.height / 2);
         const vertices = [];
@@ -43,26 +43,35 @@
         const material = new THREE.LineBasicMaterial({ color });
         super(geometry, material);
 
-        this.type = 'GridHelper2';
+        this.type = 'Grid';
+
+        if (fill) {
+          const fillGeometry = new THREE.PlaneGeometry(size.x, size.y);
+          const fillMaterial = new THREE.MeshBasicMaterial({ color: fill, side: THREE.DoubleSide });
+          const fillMesh = new THREE.Mesh(fillGeometry, fillMaterial);
+          fillMesh.position.set(0, 0, -0.01);
+          fillMesh.receiveShadow = true;
+          this.add(fillMesh);
+        }
       }
     }
 
-    // Scene, Camera, Renderer
+
+    const sphereTilt = THREE.MathUtils.degToRad(-20);
+    const gridSquareSize = 0.55;
+    const gridDivisions = new THREE.Vector2(15, 12);
+
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(
-      45,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      100
-    );
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
     camera.position.z = 7.5;
 
     const renderer = new THREE.WebGLRenderer({ antialias: false });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0xcccccc, 1);
-    renderer.setPixelRatio(0.333);
+    renderer.setPixelRatio(0.25);
     renderer.setAnimationLoop(animate);
     renderer.domElement.style.imageRendering = 'pixelated';
+    renderer.shadowMap.enabled = false; // Disable real shadows
     document.body.appendChild(renderer.domElement);
 
     function createCheckerTexture(size = 512, squares = 8) {
@@ -95,38 +104,34 @@
         map: checkerTex,
       })
     );
+    sphere.castShadow = true;
 
-    const sphereTilt = THREE.MathUtils.degToRad(-20);
     const sphereGroup = new THREE.Group();
     sphereGroup.add(sphere);
     sphereGroup.rotation.z = sphereTilt;
     scene.add(sphereGroup);
 
-    scene.add(new THREE.AmbientLight(0x404040));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-    dirLight.position.set(5, 5, 5);
-    scene.add(dirLight);
+
+    const floorGrid = new Grid(gridSquareSize, gridDivisions, new THREE.Color(0xcc00cc));
+    floorGrid.rotation.x = -Math.PI / 2;
+    floorGrid.position.y = -gridSquareSize * gridDivisions.y / 2;
+    floorGrid.position.z = -2 + gridSquareSize * gridDivisions.y / 2;
+    scene.add(floorGrid);
+
+    const wallGrid = new Grid(gridSquareSize, gridDivisions, new THREE.Color(0xcc00cc), new THREE.Color(0xcccccc));
+    wallGrid.position.z = -2;
+    scene.add(wallGrid);
+
+    const shadowGeometry = new THREE.CircleGeometry(radius, 16);
+    const shadowMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2 });
+    const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
+    scene.add(shadow);
 
     // Physics
     const velocity = new THREE.Vector2(0.02, 0.05);
     const gravity = 0.001;
     const bounceDamping = 1;
     const bounds = new THREE.Vector2(3, 1.5);
-
-    const gridSquareSize = 0.55;
-    const gridDivisions = new THREE.Vector2(15, 12);
-
-    // Floor grid on XZ plane at bottom
-    const floorGrid = new GridHelper2(gridSquareSize, gridDivisions, new THREE.Color(0xcc00cc));
-    floorGrid.rotation.x = -Math.PI / 2;
-    floorGrid.position.y = -gridSquareSize * gridDivisions.y / 2;
-    floorGrid.position.z = -2 + gridSquareSize * gridDivisions.y / 2;
-    scene.add(floorGrid);
-
-    // Wall grid on XY plane behind sphere
-    const wallGrid = new GridHelper2(gridSquareSize, gridDivisions, new THREE.Color(0xcc00cc));
-    wallGrid.position.z = -2;
-    scene.add(wallGrid);
 
     // Handle window resize
     window.addEventListener('resize', () => {
@@ -154,6 +159,7 @@
       }
 
       sphere.rotation.y += velocity.x > 0 ? -0.05 : 0.05;
+      shadow.position.copy(sphereGroup.position).add(new THREE.Vector3(0.5, 0, 0));
 
       renderer.render(scene, camera);
     }
