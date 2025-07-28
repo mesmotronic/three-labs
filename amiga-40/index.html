@@ -69,10 +69,8 @@
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.z = 10;
 
     const renderer = new THREE.WebGLRenderer({ antialias: false });
-    renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0xcccccc, 1);
     renderer.setPixelRatio(0.25);
     renderer.setAnimationLoop(animate);
@@ -132,12 +130,34 @@
     const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
     scene.add(shadow);
 
-    // Handle window resize
-    window.addEventListener('resize', () => {
+    function resize() {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+
+      // Calculate required view size (wallGrid + padding)
+      const padding = 1;
+      const wallWidth = gridSquareSize * wallGridDivisions.x;
+      const wallHeight = gridSquareSize * wallGridDivisions.y;
+      const requiredWidth = wallWidth + 2 * padding;
+      const requiredHeight = wallHeight + 2 * padding;
+
+      // Camera FOV is vertical, so calculate required z for height
+      const fovRad = camera.fov * Math.PI / 180;
+      const aspect = camera.aspect;
+      // For perspective camera, visible height at z = distance is:
+      // height = 2 * Math.tan(fov/2) * distance
+      // So: distance = requiredHeight / (2 * Math.tan(fov/2))
+      let distanceForHeight = requiredHeight / (2 * Math.tan(fovRad / 2));
+      // For width, use: width = height * aspect
+      let distanceForWidth = requiredWidth / (2 * Math.tan(fovRad / 2)) / aspect;
+      // Use the larger distance to ensure both fit
+      camera.position.z = Math.max(distanceForHeight, distanceForWidth);
+    };
+
+    // Handle window resize
+    window.addEventListener('resize', resize);
+    resize();
 
     function animate() {
       sphereGroup.position.x += velocity.x;
