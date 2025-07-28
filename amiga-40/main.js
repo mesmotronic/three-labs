@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GUI } from "three/addons/libs/lil-gui.module.min.js";
 
 class Grid extends THREE.LineSegments {
   constructor(squareSize, divisions, color, fill) {
@@ -40,6 +41,10 @@ const gridSquareSize = 0.55;
 const floorGridDivisions = new THREE.Vector2(15, 3);
 const wallGridDivisions = new THREE.Vector2(15, 12);
 
+const options = {
+  sound: false,
+};
+
 // Physics
 const velocity = new THREE.Vector2(0.02, 0.05);
 const gravity = 0.001;
@@ -53,26 +58,11 @@ const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerH
 const listener = new THREE.AudioListener();
 camera.add(listener);
 const bounceSound = new THREE.Audio(listener);
-let audioReady = false;
-let userInteracted = false;
 const audioLoader = new THREE.AudioLoader();
-audioLoader.load('./bounce.mp3', function (buffer) {
+audioLoader.load('./bounce.mp3', (buffer) => {
   bounceSound.setBuffer(buffer);
-  bounceSound.setVolume(0.5);
-  audioReady = true;
+  bounceSound.setVolume(0.0);
 });
-
-// Unlock audio on first user interaction (required by browsers)
-function unlockAudio() {
-  userInteracted = true;
-  if (bounceSound.context && bounceSound.context.state === 'suspended') {
-    bounceSound.context.resume();
-  }
-  window.removeEventListener('pointerdown', unlockAudio);
-  window.removeEventListener('keydown', unlockAudio);
-}
-window.addEventListener('pointerdown', unlockAudio);
-window.addEventListener('keydown', unlockAudio);
 
 const renderer = new THREE.WebGLRenderer({ antialias: false });
 renderer.setClearColor(0xaaaaaa, 1);
@@ -182,7 +172,7 @@ function animate() {
   }
 
   // Play bounce sound only if ready, user has interacted, and buffer is loaded
-  if (bounced && audioReady && userInteracted && bounceSound.buffer) {
+  if (bounced && options.sound && bounceSound?.buffer) {
     if (bounceSound.isPlaying) bounceSound.stop();
     bounceSound.play();
   }
@@ -192,3 +182,14 @@ function animate() {
 
   renderer.render(scene, camera);
 }
+
+const gui = new GUI();
+gui.close();
+gui.add(options, "sound").name("Sound").onChange(value => {
+  if (value) {
+    if (bounceSound.context && bounceSound.context.state === 'suspended') {
+      bounceSound.context.resume();
+    }
+  }
+  bounceSound.setVolume(value ? 1 : 0);
+});
