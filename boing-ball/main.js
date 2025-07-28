@@ -54,7 +54,7 @@ const bounds = new THREE.Vector2(3, 1.7);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
 
-// Audio setup
+// Audio
 const listener = new THREE.AudioListener();
 camera.add(listener);
 const bounceSound = new THREE.Audio(listener);
@@ -72,7 +72,7 @@ renderer.domElement.style.imageRendering = 'pixelated';
 renderer.shadowMap.enabled = false; // Disable real shadows
 document.body.appendChild(renderer.domElement);
 
-function createCheckerTexture(size = 512, squares = 8) {
+function createCheckerTexture(size = 320, squares = 8) {
   const canvas = document.createElement('canvas');
   canvas.width = size * 2;
   canvas.height = size;
