@@ -21,6 +21,32 @@
   <script type="module">
     import * as THREE from 'three';
 
+    class GridHelper2 extends THREE.LineSegments {
+      constructor(squareSize, divisions, color) {
+        const size = new THREE.Vector2(squareSize * divisions.x, squareSize * divisions.y);
+        const startPos = new THREE.Vector2(-size.width / 2, -size.height / 2);
+        const vertices = [];
+
+        for (let i = 0; i <= divisions.x; i++) {
+          const x = startPos.x + i * squareSize;
+          vertices.push(x, startPos.y, 0, x, startPos.y + size.height, 0);
+        }
+
+        for (let j = 0; j <= divisions.y; j++) {
+          const y = startPos.y + j * squareSize;
+          vertices.push(startPos.x, y, 0, startPos.x + size.width, y, 0);
+        }
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+
+        const material = new THREE.LineBasicMaterial({ color });
+        super(geometry, material);
+
+        this.type = 'GridHelper2';
+      }
+    }
+
     // Scene, Camera, Renderer
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
@@ -87,17 +113,17 @@
     const bounceDamping = 1;
     const bounds = new THREE.Vector2(2.5, 1.5);
 
-    const gridSize = 6;
-    const gridDivisions = 12;
+    const gridSize = 0.5;
+    const gridDivisions = new THREE.Vector2(15, 12);
 
     // Floor grid on XZ plane at bottom
-    const floorGrid = new THREE.GridHelper(gridSize, gridDivisions, 0xff00ff, 0xff00ff);
-    floorGrid.position.y = -gridSize / 2;
-    floorGrid.position.z = gridSize / 2 - 1.1;
+    const floorGrid = new GridHelper2(gridSize, gridDivisions, new THREE.Color(0xcc00cc));
+    floorGrid.position.y = -gridSize.y / 2;
+    floorGrid.position.z = gridSize.x / 2 - 1.1;
     scene.add(floorGrid);
 
     // Wall grid on XY plane behind sphere
-    const wallGrid = new THREE.GridHelper(gridSize, gridDivisions, 0xff00ff, 0xff00ff);
+    const wallGrid = new GridHelper2(gridSize, gridDivisions, new THREE.Color(0xcc00cc));
     wallGrid.rotation.x = Math.PI / 2;
     wallGrid.position.z = -1.1;
     scene.add(wallGrid);
