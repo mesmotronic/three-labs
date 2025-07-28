@@ -9,7 +9,9 @@
   <script type="importmap">
   {
     "imports": {
-      "three": "https://unpkg.com/three@0.177.0/build/three.module.js"
+      "three": "https://esm.sh/three@0.177.0",
+      "three/addons": "https://esm.sh/three@0.177.0/examples/jsm/",
+      "@mesmotronic/three-retropass": "https://esm.sh/@mesmotronic/three-retropass@latest",
     }
   }
   </script>
@@ -32,6 +34,7 @@
     const renderer = new THREE.WebGLRenderer({ antialias: false });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0xcccccc, 1);
+    renderer.setAnimationLoop(animate);
     document.body.appendChild(renderer.domElement);
 
     // Checkerboard texture creator
@@ -78,7 +81,7 @@
     scene.add(dirLight);
 
     // Physics
-    let velocity = new THREE.Vector2(0.02, 0.05);
+    const velocity = new THREE.Vector2(0.02, 0.05);
     const gravity = 0.001;
     const bounceDamping = 1;
     const bounds = new THREE.Vector2(2.5, 1.5);
@@ -106,35 +109,27 @@
     });
 
     function animate() {
-      requestAnimationFrame(animate);
-
-      // Horizontal movement and bounce
       sphereGroup.position.x += velocity.x;
-      if (sphereGroup.position.x > bounds.x || sphereGroup.position.x < -bounds.x) {
-        sphereGroup.position.x = THREE.MathUtils.clamp(
-          sphereGroup.position.x,
-          -bounds.x,
-          bounds.x
-        );
-        velocity.x = -velocity.x; // reverse horizontal direction
+      if (Math.abs(sphereGroup.position.x) > bounds.x) {
+        sphereGroup.position.x = THREE.MathUtils.clamp(sphereGroup.position.x, -bounds.x, bounds.x);
+        velocity.x *= -1;
       }
 
-      // Vertical movement with gravity
       velocity.y -= gravity;
+
       sphereGroup.position.y += velocity.y;
 
-      // Bounce on bottom bound only
-      if (sphereGroup.position.y < -bounds.y) {
-        sphereGroup.position.y = -bounds.y;
-        velocity.y = -velocity.y * bounceDamping;
+      const floorY = -bounds.y;
+      if (sphereGroup.position.y < floorY) {
+        const overshoot = floorY - sphereGroup.position.y;
+        sphereGroup.position.y = floorY + overshoot;
+        velocity.y *= -bounceDamping;
       }
 
-      // Rotate around Y-axis, direction based on vx
       sphere.rotation.y += velocity.x > 0 ? -0.05 : 0.05;
 
       renderer.render(scene, camera);
     }
-    animate();
   </script>
 </body>
 
