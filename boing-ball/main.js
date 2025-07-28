@@ -70,7 +70,6 @@ const renderer = new WebGPURenderer({
   canvas: document.querySelector("#container"),
 });
 renderer.setClearColor(0xaaaaaa, 1);
-renderer.setPixelRatio(0.25);
 renderer.setAnimationLoop(animate);
 renderer.domElement.style.imageRendering = 'pixelated';
 
@@ -141,6 +140,7 @@ function resize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
 
+  renderer.setPixelRatio(window.innerWidth <= 640 ? 0.5 : 0.25);
   renderer.setSize(window.innerWidth, window.innerHeight);
 
   // Camera FOV is vertical, so calculate required z for height
