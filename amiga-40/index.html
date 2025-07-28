@@ -65,10 +65,14 @@
         map: checkerTex,
       })
     );
-    scene.add(sphere);
+    // Create a pivot for the sphere
+    const spherePivot = new THREE.Group();
+    spherePivot.add(sphere);
+    scene.add(spherePivot);
 
-    // Apply fixed 10° tilt around Z-axis
-    sphere.rotation.z = THREE.MathUtils.degToRad(-20);
+    // Apply fixed 20° tilt around Z-axis to the sphere only
+    const tiltRad = THREE.MathUtils.degToRad(-20);
+    spherePivot.rotation.z = tiltRad;
 
     // Lighting
     scene.add(new THREE.AmbientLight(0x404040));
@@ -109,10 +113,10 @@
       requestAnimationFrame(animate);
 
       // Horizontal movement and bounce
-      sphere.position.x += vx;
-      if (sphere.position.x > bounds.x || sphere.position.x < -bounds.x) {
-        sphere.position.x = THREE.MathUtils.clamp(
-          sphere.position.x,
+      spherePivot.position.x += vx;
+      if (spherePivot.position.x > bounds.x || spherePivot.position.x < -bounds.x) {
+        spherePivot.position.x = THREE.MathUtils.clamp(
+          spherePivot.position.x,
           -bounds.x,
           bounds.x
         );
@@ -121,17 +125,16 @@
 
       // Vertical movement with gravity
       vy -= gravity;
-      sphere.position.y += vy;
+      spherePivot.position.y += vy;
 
       // Bounce on bottom bound only
-      if (sphere.position.y < -bounds.y) {
-        sphere.position.y = -bounds.y;
+      if (spherePivot.position.y < -bounds.y) {
+        spherePivot.position.y = -bounds.y;
         vy = -vy * bounceDamping;
       }
 
       // Rotate around Y-axis, direction based on vx
-      // sphere.rotation.y += vx > 0 ? 0.02 : -0.02;
-      // sphere.rotateOnAxis(new THREE.Vector3(0, THREE.MathUtils.degToRad(15), 0), vx > 0 ? 0.05 : -0.05);
+      sphere.rotation.y += vx > 0 ? -0.05 : 0.05;
 
       renderer.render(scene, camera);
     }
