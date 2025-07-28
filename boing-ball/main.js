@@ -25,15 +25,6 @@ class Grid extends THREE.LineSegments {
     super(geometry, material);
 
     this.type = 'Grid';
-
-    if (fill) {
-      const fillGeometry = new THREE.PlaneGeometry(size.x, size.y);
-      const fillMaterial = new THREE.MeshBasicMaterial({ color: fill, side: THREE.DoubleSide });
-      const fillMesh = new THREE.Mesh(fillGeometry, fillMaterial);
-      fillMesh.position.set(0, 0, -0.01);
-      fillMesh.receiveShadow = true;
-      this.add(fillMesh);
-    }
   }
 }
 
@@ -97,7 +88,6 @@ function createCheckerTexture(size = 320, squares = 8) {
 }
 const checkerTexture = createCheckerTexture();
 
-// Sphere mesh
 const radius = 1.25;
 const sphere = new THREE.Mesh(
   new THREE.SphereGeometry(radius, 16, 8),
@@ -119,7 +109,7 @@ floorGrid.position.y = -gridSquareSize * wallGridDivisions.y / 2;
 floorGrid.position.z = -2 + gridSquareSize * floorGridDivisions.y / 2;
 scene.add(floorGrid);
 
-const wallGrid = new Grid(gridSquareSize, wallGridDivisions, new THREE.Color(0xaa00aa), new THREE.Color(0xaaaaaa));
+const wallGrid = new Grid(gridSquareSize, wallGridDivisions, new THREE.Color(0xaa00aa));
 wallGrid.position.z = -2;
 scene.add(wallGrid);
 
@@ -128,8 +118,7 @@ const shadowMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, transparen
 const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
 scene.add(shadow);
 
-
-// Calculate required view size (wallGrid + padding)
+// View sizing
 const padding = 0.875;
 const wallWidth = gridSquareSize * wallGridDivisions.x;
 const wallHeight = gridSquareSize * wallGridDivisions.y;
@@ -143,7 +132,6 @@ function resize() {
   renderer.setPixelRatio(window.innerWidth <= 640 ? 0.5 : 0.25);
   renderer.setSize(window.innerWidth, window.innerHeight);
 
-  // Camera FOV is vertical, so calculate required z for height
   const fovRad = camera.fov * Math.PI / 180;
   const aspect = camera.aspect;
   const distanceForHeight = requiredHeight / (2 * Math.tan(fovRad / 2));
@@ -151,7 +139,6 @@ function resize() {
   camera.position.z = Math.max(distanceForHeight, distanceForWidth);
 };
 
-// Handle window resize
 window.addEventListener('resize', resize);
 resize();
 
