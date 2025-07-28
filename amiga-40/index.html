@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Happy 40th Birthday, Commodore Amiga</title>
+  <!-- ImportMap for Three.js r177 -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.177.0/build/three.module.js"
+    }
+  }
+  </script>
+</head>
+
+<body style="margin:0; overflow:hidden; background:#cccccc;">
+  <script type="module">
+    import * as THREE from 'three';
+
+    // Scene, Camera, Renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(
+      45,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      100
+    );
+    camera.position.z = 7.5;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0xcccccc, 1);
+    document.body.appendChild(renderer.domElement);
+
+    // Checkerboard texture creator
+    function createCheckerTexture(size = 512, squares = 8) {
+      const canvas = document.createElement('canvas');
+      canvas.width = size * 2;
+      canvas.height = size;
+
+      const ctx = canvas.getContext('2d');
+      const sq = size / squares;
+
+      for (let y = 0; y < squares; y++) {
+        for (let x = 0; x < squares * 2; x++) {
+          ctx.fillStyle = (x + y) % 2 === 0 ? '#ff0000' : '#ffffff';
+          ctx.fillRect(x * sq, y * sq, sq, sq);
+        }
+      }
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(1, 1);
+      return texture;
+    }
+    const checkerTex = createCheckerTexture(512, 8);
+
+    // Sphere mesh
+    const radius = 1;
+    const sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(radius, 16, 8),
+      new THREE.MeshBasicMaterial({
+        map: checkerTex,
+      })
+    );
+    scene.add(sphere);
+
+    // Apply fixed 10° tilt around Z-axis
+    sphere.rotation.z = THREE.MathUtils.degToRad(-20);
+
+    // Lighting
+    scene.add(new THREE.AmbientLight(0x404040));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(5, 5, 5);
+    scene.add(dirLight);
+
+    // Physics parameters
+    let vx = 0.02;           // horizontal velocity (mutable)
+    let vy = 0.02;           // initial vertical velocity
+    const gravity = 0.001;   // downward acceleration per frame
+    const bounceDamping = 1; // no energy loss, constant bounce height
+    const bounds = new THREE.Vector2(2.5, 1.8);
+
+    const gridSize = 6;
+    const gridDivisions = 12;
+
+    // Floor grid on XZ plane at bottom
+    const floorGrid = new THREE.GridHelper(gridSize, gridDivisions, 0xff00ff, 0xff00ff);
+    floorGrid.position.y = -gridSize / 2;
+    floorGrid.position.z = gridSize / 2 - 1.1;
+    scene.add(floorGrid);
+
+    // Wall grid on XY plane behind sphere
+    const wallGrid = new THREE.GridHelper(gridSize, gridDivisions, 0xff00ff, 0xff00ff);
+    wallGrid.rotation.x = Math.PI / 2;
+    wallGrid.position.z = -1.1;
+    scene.add(wallGrid);
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Horizontal movement and bounce
+      sphere.position.x += vx;
+      if (sphere.position.x > bounds.x || sphere.position.x < -bounds.x) {
+        sphere.position.x = THREE.MathUtils.clamp(
+          sphere.position.x,
+          -bounds.x,
+          bounds.x
+        );
+        vx = -vx; // reverse horizontal direction
+      }
+
+      // Vertical movement with gravity
+      vy -= gravity;
+      sphere.position.y += vy;
+
+      // Bounce on bottom bound only
+      if (sphere.position.y < -bounds.y) {
+        sphere.position.y = -bounds.y;
+        vy = -vy * bounceDamping;
+      }
+
+      // Rotate around Y-axis, direction based on vx
+      // sphere.rotation.y += vx > 0 ? 0.02 : -0.02;
+      // sphere.rotateOnAxis(new THREE.Vector3(0, THREE.MathUtils.degToRad(15), 0), vx > 0 ? 0.05 : -0.05);
+
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+
+</html>
