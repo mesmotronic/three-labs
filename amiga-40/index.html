@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Happy 40th Birthday, Commodore Amiga</title>
+  <title>Three.js Boing Ball | Happy 40th Birthday, Commodore Amiga!</title>
   <!-- ImportMap for Three.js r177 -->
   <script type="importmap">
   {
@@ -58,34 +58,30 @@
     const checkerTex = createCheckerTexture(512, 8);
 
     // Sphere mesh
-    const radius = 1;
+    const radius = 1.25;
     const sphere = new THREE.Mesh(
       new THREE.SphereGeometry(radius, 16, 8),
       new THREE.MeshBasicMaterial({
         map: checkerTex,
       })
     );
-    // Create a pivot for the sphere
-    const spherePivot = new THREE.Group();
-    spherePivot.add(sphere);
-    scene.add(spherePivot);
 
-    // Apply fixed 20° tilt around Z-axis to the sphere only
-    const tiltRad = THREE.MathUtils.degToRad(-20);
-    spherePivot.rotation.z = tiltRad;
+    const sphereTilt = THREE.MathUtils.degToRad(-20);
+    const sphereGroup = new THREE.Group();
+    sphereGroup.add(sphere);
+    sphereGroup.rotation.z = sphereTilt;
+    scene.add(sphereGroup);
 
-    // Lighting
     scene.add(new THREE.AmbientLight(0x404040));
     const dirLight = new THREE.DirectionalLight(0xffffff, 1);
     dirLight.position.set(5, 5, 5);
     scene.add(dirLight);
 
-    // Physics parameters
-    let vx = 0.02;           // horizontal velocity (mutable)
-    let vy = 0.02;           // initial vertical velocity
-    const gravity = 0.001;   // downward acceleration per frame
-    const bounceDamping = 1; // no energy loss, constant bounce height
-    const bounds = new THREE.Vector2(2.5, 1.8);
+    // Physics
+    let velocity = new THREE.Vector2(0.02, 0.05);
+    const gravity = 0.001;
+    const bounceDamping = 1;
+    const bounds = new THREE.Vector2(2.5, 1.5);
 
     const gridSize = 6;
     const gridDivisions = 12;
@@ -113,28 +109,28 @@
       requestAnimationFrame(animate);
 
       // Horizontal movement and bounce
-      spherePivot.position.x += vx;
-      if (spherePivot.position.x > bounds.x || spherePivot.position.x < -bounds.x) {
-        spherePivot.position.x = THREE.MathUtils.clamp(
-          spherePivot.position.x,
+      sphereGroup.position.x += velocity.x;
+      if (sphereGroup.position.x > bounds.x || sphereGroup.position.x < -bounds.x) {
+        sphereGroup.position.x = THREE.MathUtils.clamp(
+          sphereGroup.position.x,
           -bounds.x,
           bounds.x
         );
-        vx = -vx; // reverse horizontal direction
+        velocity.x = -velocity.x; // reverse horizontal direction
       }
 
       // Vertical movement with gravity
-      vy -= gravity;
-      spherePivot.position.y += vy;
+      velocity.y -= gravity;
+      sphereGroup.position.y += velocity.y;
 
       // Bounce on bottom bound only
-      if (spherePivot.position.y < -bounds.y) {
-        spherePivot.position.y = -bounds.y;
-        vy = -vy * bounceDamping;
+      if (sphereGroup.position.y < -bounds.y) {
+        sphereGroup.position.y = -bounds.y;
+        velocity.y = -velocity.y * bounceDamping;
       }
 
       // Rotate around Y-axis, direction based on vx
-      sphere.rotation.y += vx > 0 ? -0.05 : 0.05;
+      sphere.rotation.y += velocity.x > 0 ? -0.05 : 0.05;
 
       renderer.render(scene, camera);
     }
