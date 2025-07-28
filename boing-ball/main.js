@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GUI } from "three/addons/libs/lil-gui.module.min.js";
+import { WebGPURenderer } from 'three/webgpu';
 
 class Grid extends THREE.LineSegments {
   constructor(squareSize, divisions, color, fill) {
@@ -64,13 +65,14 @@ audioLoader.load('./bounce.mp3', (buffer) => {
   bounceSound.setVolume(0.0);
 });
 
-const renderer = new THREE.WebGLRenderer({ antialias: false });
+const renderer = new WebGPURenderer({
+  antialias: false,
+  canvas: document.querySelector("#container"),
+});
 renderer.setClearColor(0xaaaaaa, 1);
 renderer.setPixelRatio(0.25);
 renderer.setAnimationLoop(animate);
 renderer.domElement.style.imageRendering = 'pixelated';
-renderer.shadowMap.enabled = false; // Disable real shadows
-document.body.appendChild(renderer.domElement);
 
 function createCheckerTexture(size = 320, squares = 8) {
   const canvas = document.createElement('canvas');
@@ -90,6 +92,8 @@ function createCheckerTexture(size = 320, squares = 8) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(1, 1);
+  texture.minFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.NearestFilter;
   return texture;
 }
 const checkerTexture = createCheckerTexture();
