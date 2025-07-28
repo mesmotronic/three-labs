@@ -103,6 +103,7 @@ const sphere = new THREE.Mesh(
   })
 );
 sphere.castShadow = true;
+sphere.scale.set(1.1, 1.0, 1.1);
 
 const sphereGroup = new THREE.Group();
 sphereGroup.add(sphere);
@@ -126,7 +127,7 @@ scene.add(shadow);
 
 
 // Calculate required view size (wallGrid + padding)
-const padding = 0.5;
+const padding = 0.875;
 const wallWidth = gridSquareSize * wallGridDivisions.x;
 const wallHeight = gridSquareSize * wallGridDivisions.y;
 const requiredWidth = wallWidth + 2 * padding;
@@ -160,7 +161,6 @@ function animate() {
   }
 
   velocity.y -= gravity;
-
   sphereGroup.position.y += velocity.y;
 
   const floorY = -bounds.y;
@@ -171,9 +171,7 @@ function animate() {
     bounced = true;
   }
 
-  // Play bounce sound only if ready, user has interacted, and buffer is loaded
   if (bounced && options.sound && bounceSound?.buffer) {
-    if (bounceSound.isPlaying) bounceSound.stop();
     bounceSound.play();
   }
 
