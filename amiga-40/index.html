@@ -113,19 +113,19 @@
     const bounceDamping = 1;
     const bounds = new THREE.Vector2(2.5, 1.5);
 
-    const gridSize = 0.5;
+    const gridSquareSize = 0.55;
     const gridDivisions = new THREE.Vector2(15, 12);
 
     // Floor grid on XZ plane at bottom
-    const floorGrid = new GridHelper2(gridSize, gridDivisions, new THREE.Color(0xcc00cc));
-    floorGrid.position.y = -gridSize.y / 2;
-    floorGrid.position.z = gridSize.x / 2 - 1.1;
+    const floorGrid = new GridHelper2(gridSquareSize, gridDivisions, new THREE.Color(0xcc00cc));
+    floorGrid.rotation.x = -Math.PI / 2;
+    floorGrid.position.y = -gridSquareSize * gridDivisions.y / 2;
+    floorGrid.position.z = -2 + gridSquareSize * gridDivisions.y / 2;
     scene.add(floorGrid);
 
     // Wall grid on XY plane behind sphere
-    const wallGrid = new GridHelper2(gridSize, gridDivisions, new THREE.Color(0xcc00cc));
-    wallGrid.rotation.x = Math.PI / 2;
-    wallGrid.position.z = -1.1;
+    const wallGrid = new GridHelper2(gridSquareSize, gridDivisions, new THREE.Color(0xcc00cc));
+    wallGrid.position.z = -2;
     scene.add(wallGrid);
 
     // Handle window resize
