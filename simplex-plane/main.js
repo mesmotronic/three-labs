@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createNoise3D } from 'simplex-noise';
 import GUI from 'lil-gui';
 
-const config = {
+const state = {
   animationSpeed: 0.1,
   noiseHeight: 0.5,
   noiseZoom: 0.3,
@@ -11,17 +11,6 @@ const config = {
   spacingX: 1,
   spacingY: 32,
 };
-
-const gui = new GUI();
-const animFolder = gui.addFolder('Animation');
-animFolder.add(config, 'animationSpeed', 0, 1, 0.01).name('Speed');
-animFolder.add(config, 'noiseHeight', 0, 5, 0.1).name('Height');
-animFolder.add(config, 'noiseZoom', 0.01, 1, 0.01).name('Zoom');
-
-const textureFolder = gui.addFolder('Texture');
-textureFolder.add(config, 'dotSize', 1, 10, 1).name('Dot Size').onChange(regenerateTexture);
-textureFolder.add(config, 'spacingX', 1, 128, 1).name('Spacing X').onChange(regenerateTexture);
-textureFolder.add(config, 'spacingY', 1, 128, 1).name('Spacing Y').onChange(regenerateTexture);
 
 const canvas = document.querySelector('#container');
 const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
@@ -43,6 +32,7 @@ controls.screenSpacePanning = false;
 controls.minDistance = 2;
 controls.maxDistance = 20;
 controls.maxPolarAngle = Math.PI / 2;
+controls.saveState();
 
 function createGridTexture() {
   const canvasSize = 2048;
@@ -57,9 +47,9 @@ function createGridTexture() {
   context.fillRect(0, 0, canvasSize, canvasSize);
 
   context.fillStyle = 'white';
-  for (let y = 0; y < canvasSize; y += config.spacingY) {
-    for (let x = 0; x < canvasSize; x += config.spacingX) {
-      context.fillRect(x, y, config.dotSize, config.dotSize);
+  for (let y = 0; y < canvasSize; y += state.spacingY) {
+    for (let x = 0; x < canvasSize; x += state.spacingX) {
+      context.fillRect(x, y, state.dotSize, state.dotSize);
     }
   }
 
@@ -99,12 +89,12 @@ function animate() {
     const y = originalPositions.getY(i);
 
     const noiseVal = noise(
-      x * config.noiseZoom,
-      y * config.noiseZoom,
-      elapsedTime * config.animationSpeed
+      x * state.noiseZoom,
+      y * state.noiseZoom,
+      elapsedTime * state.animationSpeed
     );
 
-    positions.setZ(i, noiseVal * config.noiseHeight);
+    positions.setZ(i, noiseVal * state.noiseHeight);
   }
 
   positions.needsUpdate = true;
@@ -119,6 +109,26 @@ function resize() {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight, false);
 }
-
 window.addEventListener('resize', resize);
 resize();
+
+const gui = new GUI();
+const animFolder = gui.addFolder('Animation');
+animFolder.add(state, 'animationSpeed', 0, 1, 0.01).name('Speed');
+animFolder.add(state, 'noiseHeight', 0, 5, 0.1).name('Height');
+animFolder.add(state, 'noiseZoom', 0.01, 1, 0.01).name('Zoom');
+
+const textureFolder = gui.addFolder('Texture');
+textureFolder.add(state, 'dotSize', 1, 10, 1).name('Dot Size').onChange(regenerateTexture);
+textureFolder.add(state, 'spacingX', 1, 128, 1).name('Spacing X').onChange(regenerateTexture);
+textureFolder.add(state, 'spacingY', 1, 128, 1).name('Spacing Y').onChange(regenerateTexture);
+
+const guiState = gui.save();
+
+gui.add({
+  reset: () => {
+    controls.reset();
+    gui.load(guiState);
+    regenerateTexture();
+  }
+}, 'reset').name('Reset');
