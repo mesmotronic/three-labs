@@ -8,7 +8,7 @@ const config = {
   noiseHeight: 0.5,
   noiseZoom: 0.3,
   dotSize: 3,
-  spacingX: 12,
+  spacingX: 1,
   spacingY: 32,
 };
 
@@ -20,8 +20,8 @@ animFolder.add(config, 'noiseZoom', 0.01, 1, 0.01).name('Zoom');
 
 const textureFolder = gui.addFolder('Texture');
 textureFolder.add(config, 'dotSize', 1, 10, 1).name('Dot Size').onChange(regenerateTexture);
-textureFolder.add(config, 'spacingX', 1, 64, 1).name('Spacing X').onChange(regenerateTexture);
-textureFolder.add(config, 'spacingY', 1, 64, 1).name('Spacing Y').onChange(regenerateTexture);
+textureFolder.add(config, 'spacingX', 1, 128, 1).name('Spacing X').onChange(regenerateTexture);
+textureFolder.add(config, 'spacingY', 1, 128, 1).name('Spacing Y').onChange(regenerateTexture);
 
 const canvas = document.querySelector('#container');
 const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
@@ -31,7 +31,7 @@ renderer.setAnimationLoop(animate);
 const camera = new THREE.PerspectiveCamera(75, 2, 0.1, 100);
 camera.position.x = 0;
 camera.position.y = 5;
-camera.position.z = 5;
+camera.position.z = 6;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('black');
