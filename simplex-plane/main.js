@@ -7,7 +7,7 @@ const config = {
   animationSpeed: 0.1,
   noiseHeight: 0.5,
   noiseZoom: 0.3,
-  dotSize: 3,
+  dotSize: 4,
   spacingX: 1,
   spacingY: 32,
 };
