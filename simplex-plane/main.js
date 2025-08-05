@@ -123,12 +123,9 @@ textureFolder.add(state, 'dotSize', 1, 10, 1).name('Dot Size').onChange(regenera
 textureFolder.add(state, 'spacingX', 1, 128, 1).name('Spacing X').onChange(regenerateTexture);
 textureFolder.add(state, 'spacingY', 1, 128, 1).name('Spacing Y').onChange(regenerateTexture);
 
-const guiState = gui.save();
+function reset() {
+  controls.reset();
+  gui.reset();
+}
 
-gui.add({
-  reset: () => {
-    controls.reset();
-    gui.load(guiState);
-    regenerateTexture();
-  }
-}, 'reset').name('Reset');
+gui.add({ reset }, 'reset').name('Reset');
