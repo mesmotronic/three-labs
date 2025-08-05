@@ -33,7 +33,8 @@ const gridSquareSize = 0.55;
 const floorGridDivisions = new THREE.Vector2(15, 3);
 const wallGridDivisions = new THREE.Vector2(15, 12);
 
-const options = {
+const state = {
+  pixels: true,
   sound: false,
 };
 
@@ -129,7 +130,11 @@ function resize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
 
-  renderer.setPixelRatio(window.innerWidth <= 640 ? 0.5 : 0.25);
+  const pixelRatio = state.pixels
+    ? (window.innerWidth <= 640 ? 0.5 : 0.25)
+    : 1;
+
+  renderer.setPixelRatio(pixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
 
   const fovRad = camera.fov * Math.PI / 180;
@@ -162,7 +167,7 @@ function animate() {
     bounced = true;
   }
 
-  if (bounced && options.sound && bounceSound?.buffer) {
+  if (bounced && state.sound && bounceSound?.buffer) {
     bounceSound.play();
   }
 
@@ -173,8 +178,10 @@ function animate() {
 }
 
 const gui = new GUI();
+gui.title('Three Boing Ball');
 gui.close();
-gui.add(options, "sound").name("Sound").onChange(value => {
+gui.add(state, 'pixels').name('Pixels').onChange(resize);
+gui.add(state, "sound").name("Sound").onChange(value => {
   if (value) {
     if (bounceSound.context && bounceSound.context.state === 'suspended') {
       bounceSound.context.resume();
