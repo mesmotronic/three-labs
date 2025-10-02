@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Cylinder Wave | Today's Three.js Challenge</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #111111;
+      font-family: 'Inter', sans-serif;
+      color: white;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #info {
+      position: absolute;
+      top: 10px;
+      width: 100%;
+      text-align: center;
+      z-index: 100;
+      display: block;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="info">Click and drag to orbit the camera</div>
+
+  <script type="importmap">
+    {
+        "imports": {
+            "three": "https://esm.sh/three@0.180.0",
+            "three/addons/": "https://esm.sh/three@0.180.0/examples/jsm/"
+        }
+    }
+    </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    let scene, camera, renderer, controls, clock;
+    const cylinders = [];
+    const mainGroup = new THREE.Group();
+
+    function init() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x111111);
+      clock = new THREE.Clock();
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 20, 35);
+      camera.lookAt(scene.position);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+      renderer.shadowMap.enabled = true;
+      document.body.appendChild(renderer.domElement);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.minDistance = 20;
+      controls.maxDistance = 100;
+
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 10);
+      directionalLight.position.set(0, 8, -1);
+      directionalLight.castShadow = true;
+      directionalLight.shadow.mapSize.width = 1024;
+      directionalLight.shadow.mapSize.height = 1024;
+      scene.add(directionalLight);
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+      scene.add(ambientLight);
+
+      const floorGeometry = new THREE.PlaneGeometry(100, 100);
+      const floorMaterial = new THREE.ShadowMaterial({ opacity: 0.4 });
+      const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -12;
+      floor.receiveShadow = true;
+      scene.add(floor);
+
+      createCylinders();
+      scene.add(mainGroup);
+
+      window.addEventListener('resize', onWindowResize, false);
+    }
+
+    function createCylinders() {
+      const cylinderRadius = 0.25;
+      const cylinderBodyHeight = 7;
+      const bodyGeometry = new THREE.CylinderGeometry(cylinderRadius, cylinderRadius, cylinderBodyHeight, 16);
+      const capGeometry = new THREE.SphereGeometry(cylinderRadius, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+      const material = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 0.4,
+        metalness: 0.0,
+        vertexColors: true
+      });
+
+      const bodyPositions = bodyGeometry.attributes.position;
+      const bodyColors = [];
+      const color = new THREE.Color();
+      const bottomColor = new THREE.Color(0x111111);
+      const topColor = new THREE.Color(0xffffff);
+
+      for (let i = 0; i < bodyPositions.count; i++) {
+        let gradientFactor = (bodyPositions.getY(i) + cylinderBodyHeight / 2) / cylinderBodyHeight;
+        gradientFactor = Math.pow(gradientFactor, 3);
+        color.copy(bottomColor).lerp(topColor, gradientFactor);
+        bodyColors.push(color.r, color.g, color.b);
+      }
+      bodyGeometry.setAttribute('color', new THREE.Float32BufferAttribute(bodyColors, 3));
+
+      const capPositions = capGeometry.attributes.position;
+      const capColors = [];
+      for (let i = 0; i < capPositions.count; i++) {
+        capColors.push(topColor.r, topColor.g, topColor.b);
+      }
+      capGeometry.setAttribute('color', new THREE.Float32BufferAttribute(capColors, 3));
+
+      const numRings = 13;
+      const ringSpacing = 1.3;
+
+      for (let i = 1; i <= numRings; i++) {
+        const radius = i * ringSpacing;
+        const numCylindersInRing = Math.floor(2 * Math.PI * radius / (cylinderRadius * 4));
+
+        for (let j = 0; j < numCylindersInRing; j++) {
+          const angle = (j / numCylindersInRing) * Math.PI * 2;
+
+          const x = radius * Math.cos(angle);
+          const z = radius * Math.sin(angle);
+
+          const cylinderGroup = new THREE.Group();
+
+          const bodyMesh = new THREE.Mesh(bodyGeometry, material);
+          bodyMesh.castShadow = true;
+          bodyMesh.receiveShadow = true;
+          cylinderGroup.add(bodyMesh);
+
+          const capMesh = new THREE.Mesh(capGeometry, material);
+          capMesh.position.y = cylinderBodyHeight / 2;
+          capMesh.castShadow = true;
+          capMesh.receiveShadow = true;
+          cylinderGroup.add(capMesh);
+
+          cylinderGroup.position.set(x, 0, z);
+
+          cylinderGroup.userData.angle = angle;
+          cylinderGroup.userData.radius = radius;
+
+          cylinders.push(cylinderGroup);
+          mainGroup.add(cylinderGroup);
+        }
+      }
+    }
+
+    function animate() {
+      const elapsedTime = clock.getElapsedTime();
+
+      mainGroup.rotation.y = elapsedTime * 0.5;
+
+      const waveSpeed = -1.0;
+      const totalWaveHeight = 4.75;
+      const baseY = -4;
+
+      const totalRadius = 18 * 1.1;
+      const bulgeShapeRadius = totalRadius * 0.3375;
+      const bulgeCenterOrbitRadius = 9 * 1.1;
+
+      const waveRotation = elapsedTime * -waveSpeed * 1.75;
+
+      const bulge1X = bulgeCenterOrbitRadius * Math.cos(waveRotation);
+      const bulge1Z = bulgeCenterOrbitRadius * Math.sin(waveRotation);
+      const bulge2X = -bulge1X;
+      const bulge2Z = -bulge1Z;
+
+      const groupInverseRotation = -mainGroup.rotation.y;
+      const cosInv = Math.cos(groupInverseRotation);
+      const sinInv = Math.sin(groupInverseRotation);
+
+      const localBulge1X = bulge1X * cosInv - bulge1Z * sinInv;
+      const localBulge1Z = bulge1X * sinInv + bulge1Z * cosInv;
+      const localBulge2X = bulge2X * cosInv - bulge2Z * sinInv;
+      const localBulge2Z = bulge2X * sinInv + bulge2Z * cosInv;
+
+      cylinders.forEach(cylinder => {
+        const dist1 = Math.hypot(cylinder.position.x - localBulge1X, cylinder.position.z - localBulge1Z);
+        const dist2 = Math.hypot(cylinder.position.x - localBulge2X, cylinder.position.z - localBulge2Z);
+
+        const effectiveDist = Math.min(dist1, dist2);
+
+        if (effectiveDist < bulgeShapeRadius) {
+          const x = effectiveDist / bulgeShapeRadius;
+
+          const heightMultiplier = 1.0 - (x * x * (3.0 - 2.0 * x));
+
+          cylinder.position.y = baseY + heightMultiplier * totalWaveHeight;
+        } else {
+          cylinder.position.y = baseY;
+        }
+      });
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    init();
+    renderer.setAnimationLoop(animate);
+  </script>
+</body>
+
+</html>
