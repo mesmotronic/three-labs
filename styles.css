@@ -21,7 +21,6 @@ a {
 #info {
   position: absolute;
   bottom: 15px;
-  right: 15px;
+  right: 20px;
   text-align: right;
-  left: 15px;
 }
