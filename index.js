@@ -33,7 +33,7 @@ const CAROUSEL_LERP_FACTOR = 0.15;
 const CAROUSEL_COMPRESSION_RATE = 0.005;
 const CAROUSEL_ROTATION_FACTOR = 0.225;
 const CAROUSEL_MOMENTUM_FACTOR = 300;
-const CAROUSEL_CENTER_SCALE_ENHANCEMENT = 1.333;
+const CAROUSEL_CENTER_SCALE_ENHANCEMENT = 1.15;
 const CAROUSEL_SCALE_FALLOFF = 0.6;
 
 const GRID_SPACING = 4.5;
@@ -108,6 +108,7 @@ function init() {
 
   renderer.domElement.addEventListener('pointerdown', pointerDownHandler);
   renderer.domElement.addEventListener('pointermove', pointerMoveHandler);
+  renderer.domElement.addEventListener('touchmove', touchMoveHandler, { passive: false });
   renderer.domElement.addEventListener('pointerup', pointerUpHandler);
   renderer.domElement.addEventListener('pointerleave', pointerUpHandler);
 
@@ -259,25 +260,38 @@ function pointerDownHandler(event) {
 }
 
 function pointerMoveHandler(event) {
-  pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-  pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+  let clientX, clientY;
+  if (event.touches && event.touches.length > 0) {
+    clientX = event.touches[0].clientX;
+    clientY = event.touches[0].clientY;
+  } else {
+    clientX = event.clientX;
+    clientY = event.clientY;
+  }
+
+  pointer.x = (clientX / window.innerWidth) * 2 - 1;
+  pointer.y = - (clientY / window.innerHeight) * 2 + 1;
 
   if (isDragging && isCarouselView) {
-    const deltaX = event.clientX - dragStart.x;
-
+    const deltaX = clientX - dragStart.x;
     let newTargetX = currentDragX + (deltaX / window.innerWidth) * projects.length * CAROUSEL_DRAG_SENSITIVITY;
-
     targetState.x = THREE.MathUtils.clamp(newTargetX, minOffset, maxOffset);
 
     const now = Date.now();
     const deltaT = now - lastMoveTime;
-
     if (deltaT > 16) {
       const deltaXThreeUnits = targetState.x - lastMoveX;
       currentVelocity = deltaXThreeUnits / deltaT;
       lastMoveTime = now;
       lastMoveX = targetState.x;
     }
+  }
+}
+
+function touchMoveHandler(event) {
+  if (isDragging) {
+    event.preventDefault();
+    pointerMoveHandler(event);
   }
 }
 
@@ -488,20 +502,20 @@ function updateItemTransformations() {
   if (isTransitioning) return;
 
   carouselGroup.children.forEach(child => {
-    const { initialX, gridX, gridY, isHovered } = child.userData;
-
     let targetX, targetY, targetZ, targetRotY, currentScaleTarget;
 
+    const { initialX, gridX, gridY, isHovered } = child.userData;
     const worldX = initialX + carouselGroup.position.x;
     const compressionOffset = - CAROUSEL_COMPRESSION_RATE * worldX * Math.abs(worldX);
-    targetX = initialX + compressionOffset;
-    const newWorldX = targetX + carouselGroup.position.x;
-    targetRotY = -newWorldX * CAROUSEL_ROTATION_FACTOR; // Base carousel rotation
-    targetY = 0;
-    targetZ = 0;
-    currentScaleTarget = calculateCentralScale(newWorldX);
 
-    if (!isCarouselView) {
+    if (isCarouselView) {
+      targetX = initialX + compressionOffset;
+      const newWorldX = targetX + carouselGroup.position.x;
+      targetRotY = -newWorldX * CAROUSEL_ROTATION_FACTOR; // Base carousel rotation
+      targetY = 0;
+      currentScaleTarget = calculateCentralScale(newWorldX);
+      targetZ = currentScaleTarget / 3;
+    } else {
       targetX = gridX * GRID_SPACING_REDUCTION;
       targetY = gridY * GRID_SPACING_REDUCTION;
       targetZ = GRID_Z_OFFSET;
