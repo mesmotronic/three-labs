@@ -1,0 +1,65 @@
+[
+  {
+    "title": "Atari ST in 3D",
+    "description": "Celebrate 40 years since it's release with this fantastic interactive Atari ST!",
+    "url": "https://mesmotronic.github.io/atari-st/",
+    "image": "images/menu-atarist.webp",
+    "keywords": ["retro", "emulator", "wasm", "atari", "st"]
+  },
+  {
+    "title": "Cylinder Wave",
+    "description": "Rapid, but still very pretty, response to a Three.js challenge on X",
+    "url": "cylinder-wave/",
+    "image": "cylinder-wave/icon-512.png",
+    "keywords": ["animation", "wave", "challenge"]
+  },
+  {
+    "title": "Simplex Plane",
+    "description": "Relax with the wibbly wobbly waves of an animated plane",
+    "url": "simplex-plane/",
+    "image": "simplex-plane/icon-512.png",
+    "keywords": ["simplex noise", "waves", "animation", "plane"]
+  },
+  {
+    "title": "Three Boing Ball",
+    "description": "Celebrating Commodore Amiga's 40th birthday with a tribute to the classic Amiga Boing Ball animation",
+    "url": "boing-ball/",
+    "image": "boing-ball/icon-512.png",
+    "keywords": ["retro", "commodore", "amiga", "boing ball", "animation"]
+  },
+  {
+    "title": "IOTA Balls",
+    "description": "What would <a href=\"https://iota.macrocosmos.ai/dashboard\">iota.macrocosmos.ai</a> look like if we implemented the change requests we received from a 5 year old?",
+    "url": "iota-balls/",
+    "image": "iota-balls/icon-512.png",
+    "keywords": ["ray marching", "metaballs", "kids"]
+  },
+  {
+    "title": "Monkey See",
+    "description": "A few hundred monkeys watching your every move",
+    "url": "monkey-see/",
+    "image": "monkey-see/icon-512.png",
+    "keywords": ["monkey", "instanced mesh", "animation"]
+  },
+  {
+    "title": "Point Magnets",
+    "description": "A point cloud that follows your pointer(s) around... or tries to get away from them",
+    "url": "point-magnet/",
+    "image": "point-magnet/icon-512.png",
+    "keywords": ["points", "raycasting", "magnet", "pointer"]
+  },
+  {
+    "title": "RetroPass",
+    "description": "Send your projects back to the wonderfully pixelated 90s with RetroPass",
+    "url": "https://mesmotronic.github.io/three-retropass",
+    "image": "images/menu-retropass.png",
+    "keywords": ["retro", "pixelated", "post-processing"]
+  },
+  {
+    "title": "Space Lazer VR",
+    "description": "Strap on your VR headset and blast those 'roids!",
+    "url": "https://spacelaservr.mesmotronic.com/",
+    "image": "images/menu-spacelaservr.png",
+    "keywords": ["VR", "WebXR", "game", "kids"]
+  }
+]
