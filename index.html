@@ -2,54 +2,42 @@
 <html lang="en">
 
 <head>
+  <title>Three Labs | Made by Mesmotronic</title>
+
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Three Labs | Made by Mesmotronic</title>
-  <meta name="author" content="Neil Rackett" />
+  <meta name="author" content="Mesmotronic" />
   <meta name="description" content="Three Labs by Mesmotronic - A collection of fun Three.js experiments" />
+  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+  <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="stylesheet" href="index.css">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://esm.sh/three@0.180.0",
+      "gsap": "https://esm.sh/gsap@3.12.5"
+    }
+  }
+  </script>
 </head>
 
 <body>
-  <main>
-    <h1>Three Labs</h1>
-    <p>
-      Welcome to Mesmotronic's Three Labs, where we have fun with <a href="https://threejs.org/">Three.js</a> and put on the web in case anyone finds it useful or entertaining
-    </p>
-    <ul>
-      <li>
-        <strong><a href="https://mesmotronic.github.io/atari-st/">Atari ST in 3D</a></strong> - Celebrate 40 years since it's release with this fantastic interactive Atari ST! (retro, emulator, wasm)
-      </li>
-      <li>
-        <strong><a href="cylinder-wave/">Cylinder Wave</a></strong> - Rapid, but still very pretty, response to a <a href="https://x.com/threejs/status/1973620023974568360">Three.js challenge on X</a> (animation)
-      </li>
-      <li>
-        <strong><a href="simplex-plane/">Simplex Plane</a></strong> - Relaxing with the wibbly wobbly waves of an animated plane (simplex noise)
-      </li>
-      <li>
-        <strong><a href="boing-ball/">Three Boing Ball</a></strong> - Celebrating Commodore Amiga's 40th birthday with a tribute to the classic Amiga Boing Ball animation (retro)
-      </li>
-      <li>
-        <strong><a href="iota-balls/">IOTA Balls</a></strong> - What would <a href="https://iota.macrocosmos.ai/dashboard">iota.macrocosmos.ai</a> look like if we implemented all the change requests we received from a 5 year old? (ray marching)
-      </li>
-      <li>
-        <strong><a href="monkey-see/">Monkey See</a></strong> - A few hundred monkeys watching your every move (instanced mesh)
-      </li>
-      <li>
-        <strong><a href="point-magnet/">Point Magnets</a></strong> - A point cloud that follows your pointer(s) around... or tries to get away from them (points, raycasting)
-      <li>
-        <strong><a href="https://mesmotronic.github.io/three-retropass">RetroPass <!--<img src="images/external-link.svg" alt="" />--></a></strong> - Send your projects back to the wonderfully pixelated 90s with RetroPass (post-processing)
-      </li>
-      <li>
-        <strong><a href="https://spacelaservr.mesmotronic.com/">Space Lazer VR <!--<img src="images/external-link.svg" alt="" />--></a></strong> - Strap on your VR headset and blast those 'roids! (WebXR)
-      </li>
-    </ul>
-    <p>Beautiful menu coming... soon?</p>
-    <p>Make it Mesmotronic</p>
-    <footer>
-      <a href="https://mesmotronic.com/">Web</a> | <a href="https://x.com/mesmotronic">X</a> | <a href="https://github.com/mesmotronic">GitHub</a>
-    </footer>
-  </main>
+  <div id="info">
+    <h1><img src="images/mesmotronic.svg" alt="Mesmotronic" height="40"></h1>
+    <p>Welcome to Mesmotronic's Three Labs, our <a href="https://threejs.org/">Three.js</a> playground</p>
+    <p><a href="https://mesmotronic.com/">Web</a> | <a href="https://x.com/mesmotronic">X</a> | <a href="https://github.com/mesmotronic">GitHub</a></p>
+  </div>
+
+  <div id="cardInfoDisplay"></div>
+  <div id="controls">
+    <button id="toggleViewButton">
+      <img src="images/icon-grid.svg" alt="Toggle view" height="24" width="24">
+    </button>
+  </div>
+
+  <script type="module" src="index.js"></script>
   <script src="posthog.js"></script>
 </body>
 
