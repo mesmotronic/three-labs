@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MediaPipe Cube Breaker | Made by Mesmotronic</title>
+  <title>MediaPipe and Three.js Hand Control</title>
   <style>
     body {
       margin: 0;
@@ -20,10 +20,9 @@
       position: absolute;
       top: 10px;
       left: 10px;
-      width: 320px;
-      height: 240px;
+      width: 160px;
+      height: 120px;
       transform: scaleX(-1);
-      /* Mirror video */
       z-index: 10;
     }
 
@@ -178,7 +177,7 @@
         });
         console.log('Hand Landmarker ready');
         hasHandControl = true;
-        statusDiv.textContent = 'Hand control enabled! Move your hands.';
+        statusDiv.textContent = 'Hand control enabled! Pinch to crumble cubes.';
       } catch (err) {
         console.error('Hand Landmarker setup failed:', err);
         showError(`Hand detection unavailable: ${err.message}. Ensure 'hand_landmarker.task' and WASM files ('vision_wasm_internal.js', 'vision_wasm_internal.wasm') are in ./wasm/. Cubes will rotate statically.`);
@@ -195,11 +194,11 @@
       cube.scale.set(0, 0, 0);
       scene.add(cube);
 
-      // Growing animation
+      // Growing animation (faster: 0.5 seconds)
       const startTime = performance.now();
       function grow() {
-        const elapsed = (performance.now() - startTime) / 1000;
-        const t = Math.min(elapsed / 1, 1);
+        const elapsed = (performance.now() - startTime) / 500; // 500ms = 0.5 seconds
+        const t = Math.min(elapsed, 1);
         cube.scale.set(t, t, t);
         if (t >= 1) {
           // Reset crumbling flag when animation completes
@@ -251,38 +250,38 @@
       if (results.landmarks && results.landmarks.length > 0) {
         // First hand (green cube)
         const landmarks1 = results.landmarks[0];
-        const wrist1 = landmarks1[0];
-        const indexTip1 = landmarks1[8];
-        const dist1 = Math.hypot(wrist1.x - indexTip1.x, wrist1.y - indexTip1.y);
-        console.log('Hand 1 wrist-to-index distance:', dist1);
-        if (dist1 < 0.15 && greenCube && !isGreenCrumbling) {
+        const thumbTip1 = landmarks1[4]; // Thumb tip
+        const indexTip1 = landmarks1[8]; // Index fingertip
+        const dist1 = Math.hypot(thumbTip1.x - indexTip1.x, thumbTip1.y - indexTip1.y);
+        console.log('Hand 1 thumb-to-index distance:', dist1);
+        if (dist1 < 0.05 && greenCube && !isGreenCrumbling) {
           isGreenCrumbling = true;
-          console.log('Hand 1 closed - Crumbling green cube');
+          console.log('Hand 1 pinch detected - Crumbling green cube');
           crumbleCube(greenCube, fragmentMaterial, greenCube.position, true);
           greenCube = createCube(greenMaterial, new THREE.Vector3(0, 0, 0), true);
         } else if (greenCube) {
-          greenCube.position.x = (0.5 - wrist1.x) * 10;
-          greenCube.position.y = -(wrist1.y - 0.5) * 10;
-          greenCube.position.z = wrist1.z * 5 - 2;
+          greenCube.position.x = (0.5 - thumbTip1.x) * 10;
+          greenCube.position.y = -(thumbTip1.y - 0.5) * 10;
+          greenCube.position.z = thumbTip1.z * 5 - 2;
           console.log('Hand 1 detected - Green cube at:', greenCube.position);
         }
 
         // Second hand (red cube)
         if (results.landmarks.length > 1) {
           const landmarks2 = results.landmarks[1];
-          const wrist2 = landmarks2[0];
-          const indexTip2 = landmarks2[8];
-          const dist2 = Math.hypot(wrist2.x - indexTip2.x, wrist2.y - indexTip2.y);
-          console.log('Hand 2 wrist-to-index distance:', dist2);
-          if (dist2 < 0.15 && redCube && !isRedCrumbling) {
+          const thumbTip2 = landmarks2[4]; // Thumb tip
+          const indexTip2 = landmarks2[8]; // Index fingertip
+          const dist2 = Math.hypot(thumbTip2.x - indexTip2.x, thumbTip2.y - indexTip2.y);
+          console.log('Hand 2 thumb-to-index distance:', dist2);
+          if (dist2 < 0.05 && redCube && !isRedCrumbling) {
             isRedCrumbling = true;
-            console.log('Hand 2 closed - Crumbling red cube');
+            console.log('Hand 2 pinch detected - Crumbling red cube');
             crumbleCube(redCube, fragmentMaterial, redCube.position, false);
             redCube = createCube(redMaterial, new THREE.Vector3(2, 0, 0), false);
           } else if (redCube) {
-            redCube.position.x = (0.5 - wrist2.x) * 10;
-            redCube.position.y = -(wrist2.y - 0.5) * 10;
-            redCube.position.z = wrist2.z * 5 - 2;
+            redCube.position.x = (0.5 - thumbTip2.x) * 10;
+            redCube.position.y = -(thumbTip2.y - 0.5) * 10;
+            redCube.position.z = thumbTip2.z * 5 - 2;
             console.log('Hand 2 detected - Red cube at:', redCube.position);
           }
         }
