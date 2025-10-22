@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediaPipe Cube Breaker | Made by Mesmotronic</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #video {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      width: 320px;
+      height: 240px;
+      transform: scaleX(-1);
+      /* Mirror video */
+      z-index: 10;
+    }
+
+    #error {
+      position: absolute;
+      top: 260px;
+      left: 10px;
+      color: red;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 10px;
+      max-width: 400px;
+      z-index: 10;
+    }
+
+    #status {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      color: white;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      z-index: 10;
+    }
+  </style>
+</head>
+
+<body>
+  <video id="video" autoplay playsinline></video>
+  <div id="error"></div>
+  <div id="status">Initializing...</div>
+
+  <!-- Load Three.js and MediaPipe via importmap -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://esm.sh/three@0.180.0",
+        "@mediapipe/tasks-vision": "https://esm.sh/@mediapipe/tasks-vision@0.10.16"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+
+    const errorDiv = document.getElementById('error');
+    const statusDiv = document.getElementById('status');
+    let handLandmarker = null;
+    let hasHandControl = false;
+    let isGreenCrumbling = false;
+    let isRedCrumbling = false;
+
+    // Check WebGL
+    if (!navigator.gpu || !THREE.WebGLRenderer) {
+      showError('WebGL or GPU not supported. Try Chrome with hardware acceleration enabled.');
+      throw new Error('WebGL not supported');
+    }
+
+    // Check FilesetResolver
+    if (typeof FilesetResolver === 'undefined') {
+      showError('FilesetResolver not found. Check MediaPipe Tasks Vision script load.');
+      throw new Error('FilesetResolver undefined');
+    }
+    console.log('FilesetResolver available');
+
+    // Three.js setup
+    console.log('Initializing Three.js...');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x222222);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 5;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    // Lighting
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    directionalLight.position.set(5, 5, 5);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 512;
+    directionalLight.shadow.mapSize.height = 512;
+    directionalLight.shadow.camera.near = 0.5;
+    directionalLight.shadow.camera.far = 50;
+    scene.add(directionalLight);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    scene.add(ambientLight);
+
+    // Cube setup
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    geometry.computeVertexNormals();
+    const greenMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x00ff00,
+      roughness: 0.4,
+      metalness: 0.1,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.2
+    });
+    const redMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xff0000,
+      roughness: 0.4,
+      metalness: 0.1,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.2
+    });
+
+    let greenCube = new THREE.Mesh(geometry, greenMaterial);
+    greenCube.castShadow = true;
+    greenCube.receiveShadow = true;
+    scene.add(greenCube);
+
+    let redCube = new THREE.Mesh(geometry, redMaterial);
+    redCube.position.x = 2;
+    redCube.castShadow = true;
+    redCube.receiveShadow = true;
+    scene.add(redCube);
+
+    // Physics for fragments
+    const fragments = [];
+    const gravity = new THREE.Vector3(0, -0.05, 0);
+    const fragmentMaterial = new THREE.MeshStandardMaterial({
+      color: 0x888888,
+      roughness: 0.7,
+      metalness: 0.2
+    });
+
+    statusDiv.textContent = 'Scene ready. Requesting webcam...';
+
+    const videoElement = document.getElementById('video');
+
+    // Set up MediaPipe Hand Landmarker
+    async function setupHandLandmarker() {
+      try {
+        console.log('Loading MediaPipe Hand Landmarker...');
+        const vision = await FilesetResolver.forVisionTasks('./wasm/');
+        console.log('Vision fileset loaded');
+
+        const modelPath = './hand_landmarker.task';
+        handLandmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: modelPath,
+            delegate: 'GPU'
+          },
+          runningMode: 'VIDEO',
+          numHands: 2,
+          minHandDetectionConfidence: 0.5,
+          minHandPresenceConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+        console.log('Hand Landmarker ready');
+        hasHandControl = true;
+        statusDiv.textContent = 'Hand control enabled! Move your hands.';
+      } catch (err) {
+        console.error('Hand Landmarker setup failed:', err);
+        showError(`Hand detection unavailable: ${err.message}. Ensure 'hand_landmarker.task' and WASM files ('vision_wasm_internal.js', 'vision_wasm_internal.wasm') are in ./wasm/. Cubes will rotate statically.`);
+        hasHandControl = false;
+      }
+    }
+
+    // Create new cube with growing animation
+    function createCube(material, initialPosition, isGreen) {
+      const cube = new THREE.Mesh(geometry, material);
+      cube.castShadow = true;
+      cube.receiveShadow = true;
+      cube.position.copy(initialPosition);
+      cube.scale.set(0, 0, 0);
+      scene.add(cube);
+
+      // Growing animation
+      const startTime = performance.now();
+      function grow() {
+        const elapsed = (performance.now() - startTime) / 1000;
+        const t = Math.min(elapsed / 1, 1);
+        cube.scale.set(t, t, t);
+        if (t >= 1) {
+          // Reset crumbling flag when animation completes
+          if (isGreen) {
+            isGreenCrumbling = false;
+          } else {
+            isRedCrumbling = false;
+          }
+        }
+        if (t < 1) requestAnimationFrame(grow);
+      }
+      grow();
+
+      return cube;
+    }
+
+    // Crumble effect
+    function crumbleCube(cube, material, position, isGreen) {
+      if (!cube) {
+        console.warn('Cannot crumble cube: cube is undefined');
+        return;
+      }
+
+      // Create 10 small cubes as fragments
+      const fragmentGeometry = new THREE.BoxGeometry(0.25, 0.25, 0.25);
+      for (let i = 0; i < 10; i++) {
+        const fragment = new THREE.Mesh(fragmentGeometry, material);
+        fragment.position.copy(position);
+        fragment.position.x += (Math.random() - 0.5) * 0.8;
+        fragment.position.y += (Math.random() - 0.5) * 0.8;
+        fragment.position.z += (Math.random() - 0.5) * 0.8;
+        fragment.velocity = new THREE.Vector3(
+          (Math.random() - 0.5) * 0.3,
+          (Math.random() - 0.5) * 0.3,
+          (Math.random() - 0.5) * 0.3
+        );
+        fragment.castShadow = true;
+        fragment.receiveShadow = true;
+        fragments.push(fragment);
+        scene.add(fragment);
+        console.log('Added fragment at:', fragment.position);
+      }
+      scene.remove(cube);
+      console.log(`Crumbling ${isGreen ? 'green' : 'red'} cube at position:`, position);
+    }
+
+    // Hand detection callback
+    function onHandResults(results) {
+      if (results.landmarks && results.landmarks.length > 0) {
+        // First hand (green cube)
+        const landmarks1 = results.landmarks[0];
+        const wrist1 = landmarks1[0];
+        const indexTip1 = landmarks1[8];
+        const dist1 = Math.hypot(wrist1.x - indexTip1.x, wrist1.y - indexTip1.y);
+        console.log('Hand 1 wrist-to-index distance:', dist1);
+        if (dist1 < 0.15 && greenCube && !isGreenCrumbling) {
+          isGreenCrumbling = true;
+          console.log('Hand 1 closed - Crumbling green cube');
+          crumbleCube(greenCube, fragmentMaterial, greenCube.position, true);
+          greenCube = createCube(greenMaterial, new THREE.Vector3(0, 0, 0), true);
+        } else if (greenCube) {
+          greenCube.position.x = (0.5 - wrist1.x) * 10;
+          greenCube.position.y = -(wrist1.y - 0.5) * 10;
+          greenCube.position.z = wrist1.z * 5 - 2;
+          console.log('Hand 1 detected - Green cube at:', greenCube.position);
+        }
+
+        // Second hand (red cube)
+        if (results.landmarks.length > 1) {
+          const landmarks2 = results.landmarks[1];
+          const wrist2 = landmarks2[0];
+          const indexTip2 = landmarks2[8];
+          const dist2 = Math.hypot(wrist2.x - indexTip2.x, wrist2.y - indexTip2.y);
+          console.log('Hand 2 wrist-to-index distance:', dist2);
+          if (dist2 < 0.15 && redCube && !isRedCrumbling) {
+            isRedCrumbling = true;
+            console.log('Hand 2 closed - Crumbling red cube');
+            crumbleCube(redCube, fragmentMaterial, redCube.position, false);
+            redCube = createCube(redMaterial, new THREE.Vector3(2, 0, 0), false);
+          } else if (redCube) {
+            redCube.position.x = (0.5 - wrist2.x) * 10;
+            redCube.position.y = -(wrist2.y - 0.5) * 10;
+            redCube.position.z = wrist2.z * 5 - 2;
+            console.log('Hand 2 detected - Red cube at:', redCube.position);
+          }
+        }
+      }
+    }
+
+    // Setup webcam
+    async function setupCamera() {
+      try {
+        console.log('Requesting webcam...');
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480 }
+        });
+        videoElement.srcObject = stream;
+        await new Promise(resolve => {
+          videoElement.onloadedmetadata = () => {
+            console.log('Webcam ready');
+            videoElement.play();
+            resolve(null);
+          };
+        });
+        statusDiv.textContent = 'Webcam active. Loading hand detection...';
+        return true;
+      } catch (err) {
+        console.error('Webcam error:', err);
+        showError(`Webcam access denied: ${err.message}. Cubes will rotate statically.`);
+        return false;
+      }
+    }
+
+    // Process video frames
+    async function processFrames() {
+      if (!handLandmarker || !videoElement.videoWidth) return;
+      const results = await handLandmarker.detectForVideo(videoElement, performance.now());
+      onHandResults(results);
+      requestAnimationFrame(processFrames);
+    }
+
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      if (!hasHandControl) {
+        greenCube.rotation.x += 0.01;
+        greenCube.rotation.y += 0.01;
+        redCube.rotation.x += 0.01;
+        redCube.rotation.y += 0.01;
+      } else {
+        greenCube.rotation.z += 0.005;
+        redCube.rotation.z += 0.005;
+      }
+
+      // Update fragments
+      fragments.forEach(fragment => {
+        fragment.position.add(fragment.velocity);
+        fragment.velocity.add(gravity);
+        fragment.rotation.x += 0.02;
+        fragment.rotation.y += 0.02;
+        if (fragment.position.y < -10) {
+          scene.remove(fragment);
+          fragments.splice(fragments.indexOf(fragment), 1);
+        }
+      });
+
+      renderer.render(scene, camera);
+    }
+
+    // Show error
+    function showError(msg) {
+      errorDiv.textContent = msg;
+    }
+
+    // Init
+    async function init() {
+      try {
+        console.log('Starting init...');
+        const camReady = await setupCamera();
+        await setupHandLandmarker();
+        animate();
+        if (hasHandControl && camReady) {
+          processFrames();
+        }
+      } catch (err) {
+        showError('Init failed: ' + err.message);
+        console.error('Init error:', err);
+        animate(); // Run cubes anyway
+      }
+    }
+
+    init();
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+
+</html>
