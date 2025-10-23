@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediaPipe Orbit Controls | Made by Mesmotronic</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 160px;
+      height: 120px;
+      transform: scaleX(-1);
+      /* Mirror video */
+      z-index: 10;
+    }
+
+    #error {
+      position: absolute;
+      top: 260px;
+      left: 10px;
+      color: red;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 10px;
+      max-width: 400px;
+      z-index: 10;
+    }
+
+    #status {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      color: white;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      z-index: 10;
+    }
+  </style>
+</head>
+
+<body>
+  <video id="video" autoplay playsinline></video>
+  <div id="error"></div>
+  <div id="status">Initializing...</div>
+
+  <!-- Load Three.js and MediaPipe via importmap -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://esm.sh/three@0.180.0",
+        "@mediapipe/tasks-vision": "https://esm.sh/@mediapipe/tasks-vision@0.10.16"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+
+    const errorDiv = document.getElementById('error');
+    const statusDiv = document.getElementById('status');
+    let handLandmarker = null;
+    let hasHandControl = false;
+
+    // Check WebGL
+    if (!navigator.gpu || !THREE.WebGLRenderer) {
+      showError('WebGL or GPU not supported. Try Chrome with hardware acceleration enabled.');
+      throw new Error('WebGL not supported');
+    }
+
+    // Check FilesetResolver
+    if (typeof FilesetResolver === 'undefined') {
+      showError('FilesetResolver not found. Check MediaPipe Tasks Vision script load.');
+      throw new Error('FilesetResolver undefined');
+    }
+    console.log('FilesetResolver available');
+
+    // Three.js setup
+    console.log('Initializing Three.js...');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111111); // Changed to darker gray
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 30; // Adjusted for larger cylinder
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    // Lighting
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    directionalLight.position.set(5, 5, 5);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 512;
+    directionalLight.shadow.mapSize.height = 512;
+    directionalLight.shadow.camera.near = 0.5;
+    directionalLight.shadow.camera.far = 50;
+    scene.add(directionalLight);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.375);
+    scene.add(ambientLight);
+
+    // Point light for cylinder interior
+    const pointLightInterior = new THREE.PointLight(0xffffff, 0.5, 20, 2);
+    pointLightInterior.position.set(0, 0, 0); // Center of cylinder
+    scene.add(pointLightInterior);
+
+    // Point light at screen center
+    const pointLightScreen = new THREE.PointLight(0xffffff, 0.3, 30, 2);
+    pointLightScreen.position.set(0, 0, 15); // Center of screen (halfway to camera)
+    scene.add(pointLightScreen);
+
+    // Cylinder setup (open-ended, light blue, horizontal, wireframe, 20 height segments)
+    const cylinderGeometry = new THREE.CylinderGeometry(5, 5, 20, 32, 20, true); // Open-ended, 20 height segments
+    cylinderGeometry.computeVertexNormals();
+    const cylinderMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x87ceeb, // Light blue
+      roughness: 0.4,
+      metalness: 0.1,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.2,
+      side: THREE.DoubleSide, // Render inside and outside
+      wireframe: true // Enable wireframe rendering
+    });
+    const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
+    cylinder.castShadow = true;
+    cylinder.receiveShadow = true;
+    cylinder.position.set(0, 0, 0); // Locked to center
+    cylinder.rotation.x = Math.PI / 2; // Rotate 90° around x-axis to align with camera
+    scene.add(cylinder);
+
+    // Red sphere setup
+    const sphereGeometry = new THREE.SphereGeometry(1, 16, 16); // Radius 1
+    const sphereMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xff0000, // Default red
+      roughness: 0.4,
+      metalness: 0.1,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.2
+    });
+    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    sphere.castShadow = true;
+    sphere.receiveShadow = true;
+    scene.add(sphere);
+
+    statusDiv.textContent = 'Scene ready. Requesting webcam...';
+
+    const videoElement = document.getElementById('video');
+    let isPinching = false;
+    let lastThumbX = 0;
+    let lastThumbY = 0;
+    let lastThumbZ = 0;
+    let smoothedThumbX = 0; // For EMA smoothing
+    let smoothedThumbY = 0; // For EMA smoothing
+    let smoothedThumbZ = 0; // For EMA smoothing
+
+    // Set up MediaPipe Hand Landmarker
+    async function setupHandLandmarker() {
+      try {
+        console.log('Loading MediaPipe Hand Landmarker...');
+        const vision = await FilesetResolver.forVisionTasks('./wasm/');
+        console.log('Vision fileset loaded');
+
+        const modelPath = './hand_landmarker.task';
+        handLandmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: modelPath,
+            delegate: 'GPU'
+          },
+          runningMode: 'VIDEO',
+          numHands: 1,
+          minHandDetectionConfidence: 0.5,
+          minHandPresenceConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+        console.log('Hand Landmarker ready');
+        hasHandControl = true;
+        statusDiv.textContent = 'Hand control enabled! Move hand to control sphere, pinch to orbit cylinder.';
+      } catch (err) {
+        console.error('Hand Landmarker setup failed:', err);
+        showError(`Hand detection unavailable: ${err.message}. Ensure 'hand_landmarker.task' and WASM files ('vision_wasm_internal.js', 'vision_wasm_internal.wasm') are in ./wasm/. Sphere and cylinder will rotate statically.`);
+        hasHandControl = false;
+      }
+    }
+
+    // Hand detection callback
+    function onHandResults(results) {
+      if (results.landmarks && results.landmarks.length > 0) {
+        const landmarks = results.landmarks[0];
+        const thumbTip = landmarks[4]; // Thumb tip
+        const indexTip = landmarks[8]; // Index fingertip
+        const dist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
+        console.log('Hand thumb-to-index distance:', dist);
+
+        // Smooth thumbTip.x, thumbTip.y, and thumbTip.z
+        const smoothingFactor = 0.2; // For smoother control
+        smoothedThumbX = smoothedThumbX * (1 - smoothingFactor) + thumbTip.x * smoothingFactor;
+        smoothedThumbY = smoothedThumbY * (1 - smoothingFactor) + thumbTip.y * smoothingFactor;
+        smoothedThumbZ = smoothedThumbZ * (1 - smoothingFactor) + thumbTip.z * smoothingFactor;
+
+        // Update sphere position (always)
+        sphere.position.x = (0.5 - thumbTip.x) * 40;
+        sphere.position.y = -(thumbTip.y - 0.5) * 40;
+        sphere.position.z = thumbTip.z * 20 - 5;
+
+        if (dist < 0.05) {
+          // Pinch detected: orbit controls and green sphere
+          isPinching = true;
+          sphere.material.color.set(0x00ff00); // Set to green
+          const deltaX = smoothedThumbX - lastThumbX;
+          const deltaY = smoothedThumbY - lastThumbY;
+          const deltaZ = smoothedThumbZ - lastThumbZ;
+
+          // Dead zones to reduce jitter
+          const deadZone = 0.0005;
+          const rotationSpeed = 15;
+          if (Math.abs(deltaX) > deadZone) {
+            cylinder.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), -deltaX * rotationSpeed); // Rotate around world y-axis
+          }
+          if (Math.abs(deltaY) > deadZone) {
+            cylinder.rotation.x += deltaY * rotationSpeed; // Up/down (reversed)
+          }
+          // Clamp pitch to avoid flipping (relative to initial Math.PI / 2)
+          cylinder.rotation.x = Math.max(0, Math.min(Math.PI, cylinder.rotation.x));
+
+          // Zoom: adjust camera z (10 to 50 range)
+          const zoomSpeed = 80;
+          if (Math.abs(deltaZ) > deadZone) {
+            camera.position.z -= deltaZ * zoomSpeed;
+            camera.position.z = Math.max(10, Math.min(50, camera.position.z));
+          }
+
+          console.log(`Pinch detected - Rotating cylinder: x=${cylinder.rotation.x.toFixed(2)}, y=${cylinder.rotation.y.toFixed(2)}, Camera z=${camera.position.z.toFixed(2)}, deltaX=${deltaX.toFixed(4)}, deltaY=${deltaY.toFixed(4)}, deltaZ=${deltaZ.toFixed(4)}, thumbX=${thumbTip.x.toFixed(4)}, smoothedThumbX=${smoothedThumbX.toFixed(4)}, thumbY=${thumbTip.y.toFixed(4)}, smoothedThumbY=${smoothedThumbY.toFixed(4)}, thumbZ=${thumbTip.z.toFixed(4)}, smoothedThumbZ=${smoothedThumbZ.toFixed(4)}, sphereColor=green, spherePos=${JSON.stringify(sphere.position)}, cylinderQuaternion=${JSON.stringify(cylinder.quaternion)}`);
+        } else {
+          // No pinch: red sphere
+          isPinching = false;
+          sphere.material.color.set(0xff0000); // Set to red
+          console.log(`Hand detected - Sphere at: ${JSON.stringify(sphere.position)}, sphereColor=red`);
+        }
+
+        // Update last thumb position
+        lastThumbX = smoothedThumbX;
+        lastThumbY = smoothedThumbY;
+        lastThumbZ = smoothedThumbZ;
+      } else {
+        isPinching = false;
+        sphere.material.color.set(0xff0000); // Set to red
+        console.log('No hand detected - Sphere color: red');
+      }
+    }
+
+    // Setup webcam
+    async function setupCamera() {
+      try {
+        console.log('Requesting webcam...');
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480 }
+        });
+        videoElement.srcObject = stream;
+        await new Promise(resolve => {
+          videoElement.onloadedmetadata = () => {
+            console.log('Webcam ready');
+            videoElement.play();
+            resolve(null);
+          };
+        });
+        statusDiv.textContent = 'Webcam active. Loading hand detection...';
+        return true;
+      } catch (err) {
+        console.error('Webcam error:', err);
+        showError(`Webcam access denied: ${err.message}. Sphere and cylinder will rotate statically.`);
+        return false;
+      }
+    }
+
+    // Process video frames
+    async function processFrames() {
+      if (!handLandmarker || !videoElement.videoWidth) return;
+      const results = await handLandmarker.detectForVideo(videoElement, performance.now());
+      onHandResults(results);
+      requestAnimationFrame(processFrames);
+    }
+
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      if (!hasHandControl) {
+        cylinder.rotation.x += 0.01;
+        cylinder.rotation.y += 0.01;
+        sphere.rotation.x += 0.01;
+        sphere.rotation.y += 0.01;
+      } else if (!isPinching) {
+        sphere.rotation.z += 0.005;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    // Show error
+    function showError(msg) {
+      errorDiv.textContent = msg;
+    }
+
+    // Init
+    async function init() {
+      try {
+        console.log('Starting init...');
+        const camReady = await setupCamera();
+        await setupHandLandmarker();
+        animate();
+        if (hasHandControl && camReady) {
+          processFrames();
+        }
+      } catch (err) {
+        showError('Init failed: ' + err.message);
+        console.error('Init error:', err);
+        animate(); // Run anyway
+      }
+    }
+
+    init();
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+
+</html>
