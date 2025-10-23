@@ -512,6 +512,14 @@ function updateItemTransformations() {
       targetX = initialX + compressionOffset;
       const newWorldX = targetX + carouselGroup.position.x;
       targetRotY = -newWorldX * CAROUSEL_ROTATION_FACTOR; // Base carousel rotation
+
+      const maxRotY = THREE.MathUtils.degToRad(130);
+      if (targetRotY < -maxRotY) {
+        targetRotY = -maxRotY;
+      } else if (targetRotY > maxRotY) {
+        targetRotY = maxRotY;
+      }
+
       targetY = 0;
       currentScaleTarget = calculateCentralScale(newWorldX);
       targetZ = currentScaleTarget / 3;
