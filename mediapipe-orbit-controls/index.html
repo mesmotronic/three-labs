@@ -10,6 +10,7 @@
       margin: 0;
       overflow: hidden;
       font-family: Arial, sans-serif;
+      background-color: #111;
     }
 
     canvas {
@@ -23,7 +24,6 @@
       width: 160px;
       height: 120px;
       transform: scaleX(-1);
-      /* Mirror video */
       z-index: 10;
     }
 
@@ -32,7 +32,7 @@
       top: 260px;
       left: 10px;
       color: red;
-      background: rgba(255, 255, 255, 0.8);
+      background: rgba(0, 0, 0, 0.8);
       padding: 10px;
       max-width: 400px;
       z-index: 10;
@@ -85,10 +85,8 @@
       showError('FilesetResolver not found. Check MediaPipe Tasks Vision script load.');
       throw new Error('FilesetResolver undefined');
     }
-    console.log('FilesetResolver available');
 
     // Three.js setup
-    console.log('Initializing Three.js...');
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x111111); // Changed to darker gray
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -143,7 +141,7 @@
     scene.add(cylinder);
 
     // Red sphere setup
-    const sphereGeometry = new THREE.SphereGeometry(1, 16, 16); // Radius 1
+    const sphereGeometry = new THREE.SphereGeometry(0.75, 16, 16); // Radius 1
     const sphereMaterial = new THREE.MeshPhysicalMaterial({
       color: 0xff0000, // Default red
       roughness: 0.4,
@@ -188,7 +186,7 @@
         });
         console.log('Hand Landmarker ready');
         hasHandControl = true;
-        statusDiv.textContent = 'Hand control enabled! Move hand to control sphere, pinch to orbit cylinder.';
+        statusDiv.textContent = 'Pinch to rotate and zoom';
       } catch (err) {
         console.error('Hand Landmarker setup failed:', err);
         showError(`Hand detection unavailable: ${err.message}. Ensure 'hand_landmarker.task' and WASM files ('vision_wasm_internal.js', 'vision_wasm_internal.wasm') are in ./wasm/. Sphere and cylinder will rotate statically.`);
