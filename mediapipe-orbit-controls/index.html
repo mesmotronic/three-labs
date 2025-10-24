@@ -66,9 +66,15 @@
     import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 
     class MediaPipeOrbitControls {
-      constructor(camera, scene, cursor = null, videoElement = null, statusElement = null, errorElement = null, target = new THREE.Vector3(0, 0, 0)) {
+      constructor({
+        camera,
+        cursor = null,
+        videoElement = null,
+        statusElement = null,
+        errorElement = null,
+        target = new THREE.Vector3(0, 0, 0)
+      }) {
         this.camera = camera;
-        this.scene = scene; // Needed to add cursor if not provided
         this.target = target; // Point the camera looks at
         this.handLandmarker = null;
         this.hasHandControl = false;
@@ -396,7 +402,7 @@
     ));
 
     // Initialize orbit controls with defaults (no pre-existing elements)
-    const orbitControls = new MediaPipeOrbitControls(camera, scene);
+    const orbitControls = new MediaPipeOrbitControls({ camera });
 
     // Animation loop
     function animate() {
