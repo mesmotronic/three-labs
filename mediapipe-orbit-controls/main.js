@@ -83,6 +83,9 @@ cylinder.add(new THREE.Mesh(
 
 // Initialize orbit controls with defaults (no pre-existing elements)
 const orbitControls = new MediaPipeOrbitControls({ camera });
+document.body.appendChild(orbitControls.video);
+document.body.appendChild(orbitControls.statusElement);
+document.body.appendChild(orbitControls.errorElement);
 
 // Animation loop
 function animate() {

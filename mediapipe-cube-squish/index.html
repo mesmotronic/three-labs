@@ -5,13 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
   <title>MediaPipe Cube Squish | Made by Mesmotronic</title>
+  <link type="text/css" rel="stylesheet" href="../styles.css">
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      font-family: Arial, sans-serif;
-    }
-
     canvas {
       display: block;
     }
@@ -31,7 +26,6 @@
       top: 260px;
       left: 10px;
       color: red;
-      background: rgba(255, 255, 255, 0.8);
       padding: 10px;
       max-width: 400px;
       z-index: 10;
@@ -45,11 +39,17 @@
       background: rgba(0, 0, 0, 0.5);
       padding: 10px;
       z-index: 10;
+      max-width: 40%;
     }
   </style>
 </head>
 
 <body>
+  <div id="info">
+    <h1>MediaPipe + Three.js Cube Squish</h1>
+    <p>Squish the cubes by pinching with your hands!</p>
+    <p><a href="https://x.com/mesmotronic" target="_blank">@mesmotronic</a></p>
+  </div>
   <video id="video" autoplay playsinline></video>
   <div id="error"></div>
   <div id="status">Initializing...</div>
@@ -67,6 +67,8 @@
   <script type="module">
     import * as THREE from 'three';
     import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+
+    const mediaPipePath = '../mediapipe-orbit-controls/';
 
     const errorDiv = document.getElementById('error');
     const statusDiv = document.getElementById('status');
@@ -160,10 +162,10 @@
     async function setupHandLandmarker() {
       try {
         console.log('Loading MediaPipe Hand Landmarker...');
-        const vision = await FilesetResolver.forVisionTasks('./wasm/');
+        const vision = await FilesetResolver.forVisionTasks(mediaPipePath + '/wasm');
         console.log('Vision fileset loaded');
 
-        const modelPath = './hand_landmarker.task';
+        const modelPath = mediaPipePath + '/hand_landmarker.task';
         handLandmarker = await HandLandmarker.createFromOptions(vision, {
           baseOptions: {
             modelAssetPath: modelPath,
