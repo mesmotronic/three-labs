@@ -3,16 +3,17 @@
 html,
 body,
 p,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+h1 {
   margin: 0;
   padding: 0;
   text-wrap: pretty;
+  user-select: none;
+}
 
+p,
+h1,
+#info {
+  pointer-events: none;
 }
 
 body {
@@ -33,6 +34,7 @@ p {
   line-height: 1.6;
 }
 
+canvas,
 #container {
   display: block;
   width: 100%;
@@ -42,6 +44,7 @@ p {
 a {
   color: #029CC7;
   text-decoration: none;
+  pointer-events: auto;
 }
 
 #info {
