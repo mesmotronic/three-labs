@@ -1,10 +1,24 @@
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 import * as THREE from 'three';
 
+function getScriptDir() {
+  if (document.currentScript?.src) {
+    return document.currentScript.src.replace(/\/[^\/]*$/, '/');
+  }
+  if (import.meta?.url) {
+    return import.meta.url.replace(/\/[^\/]*$/, '/');
+  }
+  return './';
+}
+
 export class MediaPipeOrbitControls extends THREE.EventDispatcher {
   constructor({
-    camera, cursor = null, videoElement = null, statusElement = null, errorElement = null, target = new THREE.Vector3(0, 0, 0)
+    camera, cursor = null, videoElement = null, statusElement = null, errorElement = null, target = new THREE.Vector3(0, 0, 0), assetRoot = null
   }) {
+    if (!camera) {
+      throw new Error('MediaPipeOrbitControls] camera is required');
+    }
+
     super();
 
     this.camera = camera;
@@ -18,11 +32,13 @@ export class MediaPipeOrbitControls extends THREE.EventDispatcher {
     this.smoothedThumbX = 0;
     this.smoothedThumbY = 0;
     this.smoothedThumbZ = 0;
+    this.assetRoot = assetRoot ?? getScriptDir();
 
     // Initialize cursor if not provided
     this.cursor = cursor || this.createDefaultCursor();
-    // Attach cursor to camera regardless of whether it was provided
+
     this.camera.add(this.cursor);
+    this.camera.lookAt(this.target);
 
     // Initialize video element if not provided
     this.videoElement = videoElement || this.createDefaultVideoElement();
@@ -103,10 +119,10 @@ export class MediaPipeOrbitControls extends THREE.EventDispatcher {
   async setupHandLandmarker() {
     try {
       console.log('Loading MediaPipe Hand Landmarker...');
-      const vision = await FilesetResolver.forVisionTasks('./wasm/');
+      const vision = await FilesetResolver.forVisionTasks(this.assetRoot + 'wasm');
       console.log('Vision fileset loaded');
 
-      const modelPath = './hand_landmarker.task';
+      const modelPath = this.assetRoot + 'hand_landmarker.task';
       this.handLandmarker = await HandLandmarker.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath: modelPath,

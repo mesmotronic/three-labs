@@ -14,7 +14,7 @@
 
 <body>
 
-  <div id="info">MediaPipe + physics demo with convex objects breaking in real time<br />Pinch fingers to throw balls and move the camera.</div>
+  <div id="info">MediaPipe + physics demo based on <a href="https://threejs.org/examples/?q=brea#physics_ammo_break" target="_blank">threejs object breaking example</a><br />Pinch fingers to throw balls and move the camera.</div>
   <div id="container"></div>
 
   <script src="./libs/ammo.wasm.js"></script>
@@ -25,7 +25,7 @@
         "three": "https://esm.sh/three@0.180.0",
         "three/addons/": "https://esm.sh/three@0.180.0/examples/jsm/",
         "@mediapipe/tasks-vision": "https://esm.sh/@mediapipe/tasks-vision@0.10.16",
-        "MediaPipeOrbitControls": "../mediapipe-orbit-controls/MediaPipeOrbitControls.js"
+        "mediapipe-orbit-controls": "../mediapipe-orbit-controls/MediaPipeOrbitControls.js"
 			}
 		}
 	</script>
@@ -35,7 +35,7 @@
 
     import Stats from 'three/addons/libs/stats.module.js';
 
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { MediaPipeOrbitControls } from 'mediapipe-orbit-controls';
     import { ConvexObjectBreaker } from 'three/addons/misc/ConvexObjectBreaker.js';
     import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 
@@ -43,7 +43,8 @@
 
     // Graphics variables
     let container, stats;
-    let camera, controls, scene, renderer;
+    let camera, scene, renderer;
+    let mpControls;
     let textureLoader;
     const clock = new THREE.Clock();
 
@@ -109,16 +110,12 @@
     }
 
     function initGraphics() {
-
       container = document.getElementById('container');
-
       camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.2, 2000);
-
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0xbfd1e5);
-
-      camera.position.set(- 14, 8, 16);
-
+      camera.position.set(-20, 20, 30);
+      scene.add(camera);
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setPixelRatio(window.devicePixelRatio);
       renderer.setSize(window.innerWidth, window.innerHeight);
@@ -126,9 +123,9 @@
       renderer.shadowMap.enabled = true;
       container.appendChild(renderer.domElement);
 
-      controls = new OrbitControls(camera, renderer.domElement);
-      controls.target.set(0, 2, 0);
-      controls.update();
+      // Replace OrbitControls with MediaPipeOrbitControls
+      mpControls = new MediaPipeOrbitControls({ camera, target: new THREE.Vector3(0, 2, 0) });
+      mpControls.init();
 
       textureLoader = new THREE.TextureLoader();
 
@@ -136,13 +133,13 @@
       scene.add(ambientLight);
 
       const light = new THREE.DirectionalLight(0xffffff, 3);
-      light.position.set(- 10, 18, 5);
+      light.position.set(-10, 18, 5);
       light.castShadow = true;
       const d = 14;
-      light.shadow.camera.left = - d;
+      light.shadow.camera.left = -d;
       light.shadow.camera.right = d;
       light.shadow.camera.top = d;
-      light.shadow.camera.bottom = - d;
+      light.shadow.camera.bottom = -d;
 
       light.shadow.camera.near = 2;
       light.shadow.camera.far = 50;
@@ -157,10 +154,7 @@
       stats.domElement.style.top = '0px';
       container.appendChild(stats.domElement);
 
-      //
-
       window.addEventListener('resize', onWindowResize);
-
     }
 
     function initPhysics() {
@@ -392,36 +386,30 @@
     }
 
     function initInput() {
-
-      window.addEventListener('pointerdown', function (event) {
-
-        mouseCoords.set(
-          (event.clientX / window.innerWidth) * 2 - 1,
-          - (event.clientY / window.innerHeight) * 2 + 1
-        );
-
-        raycaster.setFromCamera(mouseCoords, camera);
-
-        // Creates a ball and throws it
-        const ballMass = 35;
-        const ballRadius = 0.4;
-
-        const ball = new THREE.Mesh(new THREE.SphereGeometry(ballRadius, 14, 10), ballMaterial);
-        ball.castShadow = true;
-        ball.receiveShadow = true;
-        const ballShape = new Ammo.btSphereShape(ballRadius);
-        ballShape.setMargin(margin);
-        pos.copy(raycaster.ray.direction);
-        pos.add(raycaster.ray.origin);
-        quat.set(0, 0, 0, 1);
-        const ballBody = createRigidBody(ball, ballShape, ballMass, pos, quat);
-
-        pos.copy(raycaster.ray.direction);
-        pos.multiplyScalar(24);
-        ballBody.setLinearVelocity(new Ammo.btVector3(pos.x, pos.y, pos.z));
-
-      });
-
+      // Replace pointerdown with MediaPipeOrbitControls 'pinchstart' event
+      if (mpControls) {
+        mpControls.addEventListener('pinchstart', function () {
+          // Get cursor position in world space
+          const cursorWorldPos = mpControls.cursor.getWorldPosition(new THREE.Vector3());
+          // Get camera direction in world space
+          const cameraWorldDir = new THREE.Vector3();
+          camera.getWorldDirection(cameraWorldDir);
+          // Shoot ball from cursor position in camera's forward direction
+          const ballMass = 35;
+          const ballRadius = 0.4;
+          const ball = new THREE.Mesh(new THREE.SphereGeometry(ballRadius, 14, 10), ballMaterial);
+          ball.castShadow = true;
+          ball.receiveShadow = true;
+          const ballShape = new Ammo.btSphereShape(ballRadius);
+          ballShape.setMargin(margin);
+          pos.copy(cursorWorldPos);
+          quat.set(0, 0, 0, 1);
+          const ballBody = createRigidBody(ball, ballShape, ballMass, pos, quat);
+          // Set velocity in camera's forward direction
+          const velocity = cameraWorldDir.clone().normalize().multiplyScalar(24);
+          ballBody.setLinearVelocity(new Ammo.btVector3(velocity.x, velocity.y, velocity.z));
+        });
+      }
     }
 
     function onWindowResize() {
