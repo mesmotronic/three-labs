@@ -1,0 +1,261 @@
+import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+import * as THREE from 'three';
+
+export class MediaPipeOrbitControls extends THREE.EventDispatcher {
+  constructor({
+    camera, cursor = null, videoElement = null, statusElement = null, errorElement = null, target = new THREE.Vector3(0, 0, 0)
+  }) {
+    super();
+
+    this.camera = camera;
+    this.target = target; // Point the camera looks at
+    this.handLandmarker = null;
+    this.hasHandControl = false;
+    this.isPinching = false;
+    this.lastThumbX = 0;
+    this.lastThumbY = 0;
+    this.lastThumbZ = 0;
+    this.smoothedThumbX = 0;
+    this.smoothedThumbY = 0;
+    this.smoothedThumbZ = 0;
+
+    // Initialize cursor if not provided
+    this.cursor = cursor || this.createDefaultCursor();
+    // Attach cursor to camera regardless of whether it was provided
+    this.camera.add(this.cursor);
+
+    // Initialize video element if not provided
+    this.videoElement = videoElement || this.createDefaultVideoElement();
+
+    // Initialize status and error elements if not provided
+    this.statusElement = statusElement || this.createDefaultStatusElement();
+    this.errorElement = errorElement || this.createDefaultErrorElement();
+  }
+
+  // Create default cursor (sphere) with MeshBasicMaterial
+  createDefaultCursor() {
+    const cursorGeometry = new THREE.SphereGeometry(0.1, 16, 16); // Smaller cursor size
+    const cursorMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff0000 // Default red
+    });
+    const cursor = new THREE.Mesh(cursorGeometry, cursorMaterial);
+    // Remove shadow properties since MeshBasicMaterial doesn't need them
+    return cursor;
+  }
+
+  // Create default video element
+  createDefaultVideoElement() {
+    const video = document.createElement('video');
+    video.className = 'video-element';
+    video.autoplay = true;
+    video.playsInline = true;
+    document.body.appendChild(video);
+    return video;
+  }
+
+  // Create default status element
+  createDefaultStatusElement() {
+    const status = document.createElement('div');
+    status.className = 'status-element';
+    status.textContent = 'Initializing...';
+    document.body.appendChild(status);
+    return status;
+  }
+
+  // Create default error element
+  createDefaultErrorElement() {
+    const error = document.createElement('div');
+    error.className = 'error-element';
+    document.body.appendChild(error);
+    return error;
+  }
+
+  // Show error message
+  showError(msg) {
+    this.errorElement.textContent = msg;
+  }
+
+  // Setup webcam
+  async setupCamera() {
+    try {
+      console.log('Requesting webcam...');
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480 }
+      });
+      this.videoElement.srcObject = stream;
+      await new Promise(resolve => {
+        this.videoElement.onloadedmetadata = () => {
+          console.log('Webcam ready');
+          this.videoElement.play();
+          resolve(null);
+        };
+      });
+      this.statusElement.textContent = 'Webcam active. Loading hand detection...';
+      return true;
+    } catch (err) {
+      console.error('Webcam error:', err);
+      this.showError(`Webcam access denied: ${err.message}. Cursor and cylinder will rotate statically.`);
+      return false;
+    }
+  }
+
+  // Setup MediaPipe Hand Landmarker
+  async setupHandLandmarker() {
+    try {
+      console.log('Loading MediaPipe Hand Landmarker...');
+      const vision = await FilesetResolver.forVisionTasks('./wasm/');
+      console.log('Vision fileset loaded');
+
+      const modelPath = './hand_landmarker.task';
+      this.handLandmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: modelPath,
+          delegate: 'GPU'
+        },
+        runningMode: 'VIDEO',
+        numHands: 1,
+        minHandDetectionConfidence: 0.5,
+        minHandPresenceConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+      console.log('Hand Landmarker ready');
+      this.hasHandControl = true;
+      this.statusElement.textContent = 'Pinch to rotate and zoom';
+    } catch (err) {
+      console.error('Hand Landmarker setup failed:', err);
+      this.showError(`Hand detection unavailable: ${err.message}. Ensure 'hand_landmarker.task' and WASM files ('vision_wasm_internal.js', 'vision_wasm_internal.wasm') are in ./wasm/. Cursor will rotate statically.`);
+      this.hasHandControl = false;
+    }
+  }
+
+  // Hand detection callback
+  onHandResults(results) {
+    let spherical = null; // Initialize spherical for logging
+    if (results.landmarks && results.landmarks.length > 0) {
+      const landmarks = results.landmarks[0];
+      const thumbTip = landmarks[4]; // Thumb tip
+      const indexTip = landmarks[8]; // Index fingertip
+      const dist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
+      console.log('Hand thumb-to-index distance:', dist);
+
+      // Smooth thumbTip.x, thumbTip.y, and thumbTip.z
+      const smoothingFactor = 0.2; // For smoother control
+      this.smoothedThumbX = this.smoothedThumbX * (1 - smoothingFactor) + thumbTip.x * smoothingFactor;
+      this.smoothedThumbY = this.smoothedThumbY * (1 - smoothingFactor) + thumbTip.y * smoothingFactor;
+      this.smoothedThumbZ = this.smoothedThumbZ * (1 - smoothingFactor) + thumbTip.z * smoothingFactor;
+
+      // Update cursor position relative to camera
+      // Map hand coordinates (0 to 1) to camera's local space
+      const cursorDistance = 5; // Closer to camera for better visibility
+      this.cursor.position.set(
+        (0.5 - thumbTip.x) * 10, // Reduced scale for tighter movement
+        -(thumbTip.y - 0.5) * 7.5, // Original cursor up/down movement
+        -cursorDistance // Negative z to place in front of camera
+      );
+
+      if (dist < 0.05) {
+        if (!this.isPinching) {
+          this.dispatchEvent({ type: 'pinchstart' });
+        }
+
+        // Pinch detected: orbit camera and set cursor to green
+        this.isPinching = true;
+        this.cursor.material.color.set(0x00ff00); // Set to green
+        const deltaX = this.smoothedThumbX - this.lastThumbX;
+        const deltaY = this.smoothedThumbY - this.lastThumbY;
+        const deltaZ = this.smoothedThumbZ - this.lastThumbZ;
+
+        // Dead zones to reduce jitter
+        const deadZone = 0.0005;
+        const rotationSpeed = 15;
+
+        // Orbit camera around target (mimicking OrbitControls)
+        if (Math.abs(deltaX) > deadZone || Math.abs(deltaY) > deadZone) {
+          // Get spherical coordinates of camera relative to target
+          const offset = this.camera.position.clone().sub(this.target);
+          spherical = new THREE.Spherical();
+          spherical.setFromVector3(offset);
+
+          // Update angles
+          if (Math.abs(deltaX) > deadZone) {
+            spherical.theta += deltaX * rotationSpeed; // Azimuthal angle (yaw), inverted
+          }
+          if (Math.abs(deltaY) > deadZone) {
+            spherical.phi -= deltaY * rotationSpeed; // Polar angle (pitch), inverted
+          }
+
+          // Clamp phi to avoid flipping (between 0.1 and Math.PI - 0.1)
+          spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+
+          // Convert back to Cartesian coordinates
+          const newPosition = new THREE.Vector3().setFromSpherical(spherical);
+          this.camera.position.copy(this.target).add(newPosition);
+          this.camera.lookAt(this.target);
+        }
+
+        // Zoom: adjust camera distance from target (10 to 50 range)
+        const zoomSpeed = 200; // Doubled for 2x faster zooming
+        if (Math.abs(deltaZ) > deadZone) {
+          const offset = this.camera.position.clone().sub(this.target);
+          spherical = spherical || new THREE.Spherical(); // Ensure spherical is defined
+          spherical.setFromVector3(offset);
+          spherical.radius -= deltaZ * zoomSpeed;
+          spherical.radius = Math.max(10, Math.min(50, spherical.radius));
+          const newPosition = new THREE.Vector3().setFromSpherical(spherical);
+          this.camera.position.copy(this.target).add(newPosition);
+          this.camera.lookAt(this.target);
+        }
+
+        // Log camera and cursor info
+        console.log(`Pinch detected - Camera pos=${JSON.stringify(this.camera.position)}, theta=${spherical ? spherical.theta.toFixed(2) : 'N/A'}, phi=${spherical ? spherical.phi.toFixed(2) : 'N/A'}, radius=${spherical ? spherical.radius.toFixed(2) : 'N/A'}, deltaX=${deltaX.toFixed(4)}, deltaY=${deltaY.toFixed(4)}, deltaZ=${deltaZ.toFixed(4)}, thumbX=${thumbTip.x.toFixed(4)}, smoothedThumbX=${this.smoothedThumbX.toFixed(4)}, thumbY=${thumbTip.y.toFixed(4)}, smoothedThumbY=${this.smoothedThumbY.toFixed(4)}, thumbZ=${thumbTip.z.toFixed(4)}, smoothedThumbZ=${this.smoothedThumbZ.toFixed(4)}, cursorColor=green, cursorPos=${JSON.stringify(this.cursor.position)}`);
+      } else {
+        // No pinch: red cursor
+        this.isPinching = false;
+        this.cursor.material.color.set(0xff0000); // Set to red
+        console.log(`Hand detected - Cursor at: ${JSON.stringify(this.cursor.position)}, cursorColor=red`);
+      }
+
+      // Update last thumb position
+      this.lastThumbX = this.smoothedThumbX;
+      this.lastThumbY = this.smoothedThumbY;
+      this.lastThumbZ = this.smoothedThumbZ;
+    } else {
+      this.isPinching = false;
+      this.cursor.material.color.set(0xff0000); // Set to red
+      console.log('No hand detected - Cursor color: red');
+    }
+  }
+
+  // Process video frames
+  async processFrames() {
+    if (!this.handLandmarker || !this.videoElement.videoWidth) return;
+    const results = await this.handLandmarker.detectForVideo(this.videoElement, performance.now());
+    this.onHandResults(results);
+    requestAnimationFrame(() => this.processFrames());
+  }
+
+  // Initialize controls
+  async init() {
+    try {
+      console.log('Starting MediaPipeOrbitControls init...');
+      const camReady = await this.setupCamera();
+      await this.setupHandLandmarker();
+      if (this.hasHandControl && camReady) {
+        this.processFrames();
+      }
+    } catch (err) {
+      this.showError('MediaPipeOrbitControls init failed: ' + err.message);
+      console.error('MediaPipeOrbitControls init error:', err);
+    }
+  }
+
+  // Update animation (called externally)
+  update() {
+    if (!this.hasHandControl) {
+      this.cursor.rotation.x += 0.01;
+      this.cursor.rotation.y += 0.01;
+    } else if (!this.isPinching) {
+      this.cursor.rotation.z += 0.005;
+    }
+  }
+}
