@@ -21,7 +21,7 @@ const Config = {
   },
   ball: {
     speed: 0.2,
-    bias: 0.5,
+    bias: 4.5,
     jitter: 0.05,
     radius: 0.25,
     emissiveIntensity: 3.0,
