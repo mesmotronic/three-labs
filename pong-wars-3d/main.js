@@ -183,8 +183,6 @@ class Ball {
     this.light = new THREE.PointLight(colorHex, Config.ball.lightIntensity, Config.ball.lightDistance);
     this.mesh.add(this.light);
 
-    scene.add(this.mesh);
-
     this.reset(startXMin, startXMax);
   }
 
@@ -277,6 +275,7 @@ class Ball {
 
 const redBall = new Ball(0, Config.colors.red, 0, 4);
 const blueBall = new Ball(1, Config.colors.blue, 5, 9);
+scene.add(redBall.mesh, blueBall.mesh);
 
 function animate() {
   redBall.update();
