@@ -9,7 +9,7 @@
   {
     "title": "Atari ST in 3D",
     "description": "Celebrate 40 years since it's release with this fantastic interactive Atari ST!",
-    "url": "atari-st/",
+    "url": "https://labs.mesmotronic.com/atari-st/",
     "image": "images/menu-atarist.webp",
     "keywords": ["retro", "emulator", "wasm", "atari", "st"]
   },
