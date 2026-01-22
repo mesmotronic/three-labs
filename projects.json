@@ -1,8 +1,15 @@
 [
   {
+    "title": "Pong Wars 3D",
+    "description": "The eternal battle between day and night, good and bad goes 3D!",
+    "url": "pong-wars-3d/",
+    "image": "pong-wars-3d/icon-512.png",
+    "keywords": ["pong", "pongwars", "neon"]
+  },
+  {
     "title": "Atari ST in 3D",
     "description": "Celebrate 40 years since it's release with this fantastic interactive Atari ST!",
-    "url": "https://mesmotronic.github.io/atari-st/",
+    "url": "atari-st/",
     "image": "images/menu-atarist.webp",
     "keywords": ["retro", "emulator", "wasm", "atari", "st"]
   },

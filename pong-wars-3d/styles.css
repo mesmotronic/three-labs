@@ -1,0 +1,62 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  background-color: #050505;
+}
+
+canvas {
+  display: block;
+}
+
+#scoreRed,
+#scoreBlue {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: 'Quicksand', sans-serif;
+  font-size: 24px;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  user-select: none;
+  text-shadow: 0 0 10px currentColor;
+  z-index: 10;
+  opacity: 0.8;
+  transition: color 0.3s;
+}
+
+#scoreRed {
+  left: 50px;
+}
+
+#scoreBlue {
+  right: 50px;
+}
+
+@media (max-aspect-ratio: 1/1) {
+
+  #scoreRed,
+  #scoreBlue {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  #scoreRed {
+    top: 40px;
+    bottom: auto;
+  }
+
+  #scoreBlue {
+    top: auto;
+    bottom: 40px;
+    right: auto;
+  }
+}
+
+@media screen and (min-width:768px) {
+
+  #scoreRed,
+  #scoreBlue {
+    font-size: 36px;
+  }
+}

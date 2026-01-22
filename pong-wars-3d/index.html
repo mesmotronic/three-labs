@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pong Wars 3D</title>
+  <meta name="description" content="The eternal battle between day and night, good and bad goes 3D!" />
+  <meta name="author" content="Neil Rackett" />
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500&display=swap" rel="stylesheet">
+  <!-- <link rel="stylesheet" href="../styles.css"> -->
+  <link rel="stylesheet" href="styles.css">
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#050505">
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://esm.sh/three@0.182.0",
+        "three/addons/": "https://esm.sh/three@0.182.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <div id="scoreRed">0</div>
+  <div id="scoreBlue">0</div>
+  <script type="module" src="main.js"></script>
+</body>
+
+</html>
